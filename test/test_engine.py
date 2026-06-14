@@ -7,14 +7,14 @@ This file has two layers:
    from ``backward`` against finite differences), since broadcasting in the
    backward pass is the easiest thing to get subtly wrong.
 
-2. **A didactic visualisation** (the ``draw_graph`` / ``explain_backward``
+2. **A didactic visualisation** (the ``draw_graph`` / ``draw_backward_steps``
    helpers and the ``demo_gradient_graph`` walkthrough): these print an input
    vector and an ASCII drawing of the computational graph, annotating every
    node with its forward value *and* its gradient so a reader can literally see
    how reverse-mode autodiff propagates the chain rule from the output back to
-   the inputs. The demo uses the "bias trick" (augment the input with a leading
-   ``x_0 = 1`` so the bias is just another weight ``w_0``), giving a single
-   inner product ``z = w . x``.
+   the inputs. The demo computes ``y = tanh(wᵀ @ x)`` — a tiny linear layer —
+   using the "bias trick" (a leading ``x_0 = 1`` so the bias is just another
+   weight ``w_0``).
 
 Run the demo on its own with::
 
@@ -27,6 +27,7 @@ or see the same output during the test run with::
 
 import numpy as np
 
+import bert_cpu.engine as engine
 from bert_cpu.engine import Tensor
 from test.console import console
 
@@ -39,12 +40,31 @@ def numeric_gradient(f, x: np.ndarray, eps: float = 1e-6) -> np.ndarray:
 
     Why this exists
     ---------------
-    This is the independent *reference* against which we check the engine's
-    analytic gradients (the ``_backward`` closures + chain rule). The trick 
-    of a *gradient check* is to compute the same gradient a second way, using 
-    a method that knows nothing about the engine's internals, and compare.  
-    If the two agree we can trust ``backward``; if they disagree, a ``_backward`` 
-    is wrong. (See ``test_gradcheck_mlp`` and ``test_softmax_sums_to_one``.)
+    This is the independent *reference* against which we check the gradients
+    computed by our autograd engine, i.e., by ``Tensor.backward()``. In this
+    library, ``Tensor.backward()`` traverses the computational graph in reverse
+    topological order and calls each node's local ``_backward`` closure to apply
+    the chain rule.
+
+    The trick of a *gradient check* is to compute the same gradient a second way,
+    using a method that knows nothing about the engine's internals, and compare.
+    If the numerical and analytic gradients agree within tolerance, we gain
+    confidence that ``Tensor.backward()`` and the local ``_backward`` rules are
+    implemented correctly. If they disagree, then some part of the backward pass
+    is likely wrong: either a local ``_backward`` rule, gradient accumulation, or
+    the chain-rule traversal. (See ``test_gradcheck_mlp`` and
+    ``test_softmax_sums_to_one``.)
+
+    What exactly is ``f``?
+    ----------------------
+    ``f`` is the function we are differentiating: it re-runs the forward pass
+    and returns the single scalar output as a plain Python float. Crucially it
+    takes **no arguments** -- it does not receive ``x``. Instead it reads ``x``
+    *indirectly*, by closing over the very same array object that this routine
+    mutates. So ``f`` and ``x`` are wired to the same memory: when we poke
+    ``x[i]``, the next call to ``f()`` recomputes the output using that poked
+    value. That shared-array link is the whole mechanism -- it is how perturbing
+    one number changes the output we measure.
 
     The maths
     ---------
@@ -71,14 +91,31 @@ def numeric_gradient(f, x: np.ndarray, eps: float = 1e-6) -> np.ndarray:
     gradient entry by entry. That is why this is O(size of ``x``) forward passes
     and only ever used on tiny tensors inside tests -- never to actually train.
 
+
+
+    Concretely, a caller writes (see ``test_gradcheck_mlp``)::
+
+        x = Tensor(np.random.randn(4, 3))          # a leaf in the graph
+        def forward():
+            return ((x @ W + b).gelu() ** 2).mean()  # rebuilds graph, scalar out
+        numeric_gradient(lambda: float(forward().data), x.data)
+
+    Here ``f = lambda: float(forward().data)`` rebuilds the expression and
+    returns the loss, and the ``x`` we differentiate is ``x.data`` -- the *same*
+    NumPy buffer the Tensor ``x`` holds. Because ``forward`` reads ``x`` (and
+    thus ``x.data``) every time it runs, editing ``x.data[i]`` in place is seen
+    by the next ``forward()``. (Pass a *copy* of the array and the link breaks:
+    ``f`` would keep reading the original and every partial would come out 0.)
+
     Parameters
     ----------
     f : Callable[[], float]
-        Zero-argument closure that reads the *current* contents of ``x`` and
-        returns a Python float (the scalar output). ``x`` is mutated in place
-        and always restored to its original value before returning.
+        Zero-argument closure that re-evaluates the forward pass over the
+        *current* contents of ``x`` and returns the scalar output as a float.
     x : np.ndarray
-        The array to differentiate with respect to; perturbed element by element.
+        The exact array object that ``f`` reads (e.g. a Tensor's ``.data``), not
+        a copy. It is perturbed element by element and always restored to its
+        original value before returning.
     eps : float
         The finite step ``h``. A trade-off: too large and the difference
         quotient is a poor approximation of the limit (truncation error); too
@@ -255,12 +292,23 @@ def draw_graph(root: Tensor, known: set) -> None:
     print()
 
 
+def _T(name: str) -> str:
+    """Toggle a trailing transpose marker ``ᵀ`` on a variable name.
+
+    So ``_T("x") == "xᵀ"`` and ``_T("wᵀ") == "w"`` (a transpose cancels itself),
+    which keeps the matmul backward formulas readable.
+    """
+    return name[:-1] if name.endswith("ᵀ") else name + "ᵀ"
+
+
 def _backward_rule(v: Tensor) -> "tuple[str, str]":
     """Return ``(formula, note)`` for how node ``v``'s backward feeds its inputs.
 
     Spells out the local derivative used by ``v._backward`` so the reader sees
     exactly how each child gradient is computed (the chain-rule step). The
-    children are taken in the same sorted order ``draw_graph`` uses.
+    children are taken in the same sorted order ``draw_graph`` uses. For matmul
+    this assumes that sorted order matches the engine's ``self @ other`` operand
+    order, which holds for the demo's ``wᵀ @ x``.
     """
     vname = getattr(v, "label", "") or v._op or "?"
     kids = [
@@ -274,6 +322,14 @@ def _backward_rule(v: Tensor) -> "tuple[str, str]":
         z = kids[0]
         return (f"grad({z}) = grad({vname}) * (1 - {vname}^2)",
                 f"local derivative of tanh: d{vname}/d{z} = 1 - {vname}^2")
+    if v._op == "@" and len(kids) == 2:
+        a, b = kids  # for the demo: a = wᵀ, b = x
+        return (f"grad({a}) = grad({vname}) @ {_T(b)},   grad({b}) = {_T(a)} @ grad({vname})",
+                "matmul backward: upstream grad times the *other* factor, transposed")
+    if v._op == "transpose" and len(kids) == 1:
+        c = kids[0]
+        return (f"grad({c}) = grad({vname})ᵀ",
+                "transpose just transposes the gradient straight back")
     if v._op == "sum" and len(kids) == 1:
         c = kids[0]
         return (f"grad({c}) = grad({vname}) copied into every element of {c}",
@@ -351,49 +407,50 @@ def draw_backward_steps(root: Tensor) -> None:
 
 
 def demo_gradient_graph() -> None:
-    """Build a tiny neuron, run autodiff, and visualise the gradient graph.
+    """Build a tiny linear unit, run autodiff, and visualise the gradient graph.
 
-    The neuron uses the "bias trick": the input vector is *augmented* with a
-    leading constant ``x_0 = 1`` so that the bias becomes just another weight
-    ``w_0``. The weight vector therefore has one more component than there are
-    real features, and the whole pre-activation is a single inner product
-    ``z = w . x``.
+    The unit computes ``y = tanh(wᵀ @ x)`` — a single matrix multiplication (a
+    linear layer) followed by a tanh. The "bias trick" augments the input with a
+    leading constant ``x_0 = 1`` so the bias is just another weight ``w_0``, and
+    ``x`` and ``w`` are column vectors so ``wᵀ @ x`` is their weighted sum.
     """
     print('\n')
     print(console.text("=" * 64))
     print(
         console.text("Gradient-graph demo:  ")
-        + console.math("y = tanh( w . x )")
+        + console.math("y = tanh( wᵀ @ x )")
         + console.text(",  with ")
         + console.math("x_0 = 1")
     )
     print(console.text("=" * 64))
 
-    # Real features of the input.
-    features = [2.0, -3.0]
-    # Augmented input vector: x_0 = 1 prepended so w_0 acts as the bias.
-    x = Tensor([1.0] + features);   x.label = "x"   # x = [x_0=1, x_1, x_2]
-    # Weights, one per augmented input component; w_0 is the bias term.
-    w = Tensor([0.5, 0.5, 1.5]);    w.label = "w"   # w = [w_0(bias), w_1, w_2]
+    # Real features of the input (random each run; seed via engine.set_seed).
+    features = np.random.randn(2)
+    # Augmented input column vector x = [x_0=1, x_1, x_2]ᵀ, shape (3, 1).
+    x = Tensor([[1.0], [features[0]], [features[1]]]);   x.label = "x"
+    # Weight column vector w = [w_0(bias), w_1, w_2]ᵀ, shape (3, 1). Kept small
+    # (* 0.3) so the pre-activation stays in tanh's active region and the
+    # gradients don't vanish into a saturated tanh.
+    w = Tensor(np.random.randn(3, 1) * 0.3);             w.label = "w"
 
     print(console.text("\nReal features      : "), end="")
-    print(console.fmt(np.array(features)))
+    print(console.fmt(features))
     print(console.text("Augmented input  ") + console.math("x = "), end="")
     print(console.fmt(x.data), end="")
-    print(console.text("    (") + console.math("x_0 = 1") + console.text(" prepended)"))
+    print(console.text("    (column (3,1); ") + console.math("x_0 = 1") + console.text(" prepended)"))
     print(console.text("Weights          ") + console.math("w = "), end="")
     print(console.fmt(w.data), end="")
-    print(console.text("    (") + console.math("w_0") + console.text(" is the bias)"))
+    print(console.text("    (column (3,1); ") + console.math("w_0") + console.text(" is the bias)"))
 
-    # Forward pass (label the intermediates so the drawing is readable).
-    prod = x * w;            prod.label = "x*w"
-    z = prod.sum();          z.label = "z"
-    y = z.tanh();            y.label = "y"
+    # Forward pass: transpose w, then the matmul (linear layer), then tanh.
+    wt = w.T;       wt.label = "wᵀ"   # transpose -> row (1, 3)
+    z = wt @ x;     z.label = "z"     # (1, 3) @ (3, 1) -> (1, 1)
+    y = z.tanh();   y.label = "y"
 
     print(console.text("\nForward pass:"))
-    console.kv("  x * w          = ", console.fmt(prod.data), color=console.math)
-    console.kv("  z = w . x      = ", console.fmt(z.data), "    (inner product = sum of x * w)", color=console.math)
-    console.kv("  y = tanh(z)    = ", console.fmt(y.data), color=console.math)
+    console.kv("  wᵀ           = ", console.fmt(wt.data), "    (w transposed -> row)", color=console.math)
+    console.kv("  z = wᵀ @ x   = ", console.fmt(z.data), "    (matrix product = weighted sum + bias)", color=console.math)
+    console.kv("  y = tanh(z)  = ", console.fmt(y.data), color=console.math)
 
     print(console.text("\nEach node in the computational graph stores:"))
     print(
@@ -431,5 +488,53 @@ def test_demo_gradient_graph_runs():
     demo_gradient_graph()
 
 
-if __name__ == "__main__":
+# ====================================================================== #
+# Standalone entry point
+# ====================================================================== #
+def main(argv=None) -> None:
+    """Run the didactic walkthrough with a chosen precision and RNG seed.
+
+    The precision and seed are configured on the engine *before* anything is
+    built, so they govern the whole run::
+
+        python test/test_engine.py --precision float32 --seed 0
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--precision",
+        default="float64",
+        help="NumPy float dtype for the engine (e.g. float16, float32, float64).",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed for the NumPy RNG (reproducible run). Omit for a random run.",
+    )
+    args = parser.parse_args(argv)
+
+    # Resolve the precision string to a NumPy dtype (clear error if invalid).
+    try:
+        dtype = np.dtype(args.precision)
+    except TypeError as exc:
+        parser.error(f"unknown precision {args.precision!r}: {exc}")
+    if not np.issubdtype(dtype, np.floating):
+        parser.error(f"precision must be a floating type, got {args.precision!r}")
+
+    # Configure the engine globally, before any tensor is created. Only seed
+    # when asked, so an unseeded run draws fresh random tensors each time.
+    engine.default_dtype = dtype.type
+    if args.seed is not None:
+        engine.set_seed(args.seed)
+
+    seed_str = "random" if args.seed is None else str(args.seed)
+    print(console.text("Engine config: ") + console.label("seed") + console.text("=")
+          + console.value(seed_str) + console.text("  ") + console.label("precision")
+          + console.text("=") + console.value(dtype.name))
     demo_gradient_graph()
+
+
+if __name__ == "__main__":
+    main()

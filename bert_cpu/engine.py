@@ -1,14 +1,32 @@
 """Tensor-based reverse-mode autodiff engine.
 
-This is the NumPy-backed successor to micrograd's scalar ``Value``. A
-``Tensor`` wraps an ``np.ndarray`` and records the operations applied to it so
-that gradients can be computed by reverse-mode automatic differentiation.
+This module implements a NumPy-backed successor to micrograd's [1] scalar
+``Value`` class. A ``Tensor`` wraps an ``np.ndarray`` and records the operations
+applied to it so that gradients can be computed by reverse-mode automatic
+differentiation.
 
-The autograd machinery (topological sort + per-node ``_backward`` closures) is
-identical in spirit to micrograd; the difference is that every node now holds an
-array instead of a scalar, so each ``_backward`` must respect NumPy broadcasting
-when accumulating gradients back into its parents.
+The core autograd machinery is identical in spirit to micrograd: the engine
+builds a computational graph, sorts it topologically, and calls each node's
+``_backward`` closure in reverse order. The main difference is that each node
+now stores a whole NumPy array rather than a single scalar value.
+
+In micrograd, arithmetic is performed through Python-level scalar
+operations, and a vector or matrix computation would be represented as many
+small scalar nodes. In this tensor-based engine, operations such as elementwise
+multiplication, reductions, broadcasting, and matrix multiplication are
+represented as single graph nodes, while the underlying numerical computation
+is delegated to NumPy's optimized compiled backend.
+
+This makes the graph more compact and brings the implementation closer to the
+design of real deep learning frameworks, where graph nodes usually represent
+tensor operations rather than individual scalar operations. 
+
+References:
+----------
+
+[1] https://github.com/karpathy/micrograd
 """
+
 
 from __future__ import annotations
 
@@ -19,40 +37,271 @@ import numpy as np
 ArrayLike = Union["Tensor", np.ndarray, float, int]
 Axis = Optional[Union[int, Tuple[int, ...]]]
 
+# The engine uses ``default_dtype`` to control the numerical precision used
+# internally by new tensors. By default, this is usually set to ``np.float64``
+# because it gives better numerical stability, especially for finite-difference
+# gradient checks. Gradient checking is sensitive to very small perturbations,
+# so lower precision types may introduce round-off errors that make a correct
+# backward rule look wrong.
+#
+# The precision can be changed globally by modifying ``engine.default_dtype``:
+#
+#     import numpy as np
+#     import bert_cpu.engine as engine
+#
+#     engine.default_dtype = np.float32
+#
+# Common NumPy floating-point options are: np.float16, np.float32, mp.float64
+# In this educational implementation, the default favors clarity and numerical
+# reliability over speed.
 
-def _expand_reduced(
-    grad: np.ndarray, axis: Axis, keepdims: bool, target_shape: Tuple[int, ...]
-) -> np.ndarray:
-    """Broadcast a reduced gradient back to the pre-reduction shape.
+default_dtype: np.dtype = np.float64 
 
-    Reductions (``sum``/``mean``/``var``/``max``) collapse one or more axes; on
-    the way back the upstream gradient must be re-expanded along those axes and
-    broadcast to the original input shape.
+# Exotic data types such as float8 could also work if you supply a dtype object from 
+# a package like ``ml_dtypes``.
+
+
+
+def set_seed(seed: int) -> None:
+    """Seed the single, library-wide NumPy random number generator.
+
+    All randomness in the project — parameter initialization, dataset
+    shuffling, token masking, dropout, and negative sampling — flows through
+    NumPy's *global* random state (the ``np.random.*`` functions, which is also
+    what ``randn`` below uses). Seeding that one source therefore makes the
+    whole experiment reproducible. Centralizing these sources of randomness
+    makes experiments easier to reproduce and helps researchers compare model
+    variants under more controlled conditions.
+
+    As discussed by Pham et al. [2] and Chen et al. [3], the interaction between
+    software-level randomness and hardware-level** nondeterminism, using regular
+    Deep Learning frameworks, makes it difficult to determine whether an observed
+    performance change was caused by a proposed architectural or algorithmic 
+    modification or merely by uncontrolled experimental variation. Centralizing 
+    the explicit sources of randomness in a single NumPy generator therefore helps
+    researchers conduct more controlled comparisons during early prototyping. 
+    
+    **GPUs are widely used for deep learning training because their large number of 
+    processing cores enables substantial parallelism. However, this parallel execution 
+    can also introduce nondeterminism in floating-point computations. Floating-point 
+    operations are affected by rounding and are not mathematically associative in 
+    finite precision; therefore, different execution or reduction orders may lead to
+    small numerical differences across runs [2, 4].
+
+
+    Parameters
+    ----------
+    seed:
+        Integer used to initialize NumPy's pseudo-random number generator.
+        Reusing the same seed reproduces the same random sequence, provided
+        that random operations are executed in the same order.
+
+    How to use it
+    -------------
+    Call it **once, at the very start**, before creating any tensors or data;
+
+        import bert_cpu
+        bert_cpu.set_seed(0)        # same seed -> identical run every time
+        x = bert_cpu.randn(3, 4)    # reproducible
+
+    Call ``set_seed`` again with another value for a different but equally
+    repeatable run; omit it entirely for a fresh random run.
+
+    Returns
+    -------
+    None
+        The seed is applied to NumPy's global random state in place.
+
+    References
+    ----------
+    [2] H. V. Pham, S. Qian, J. Wang, T. Lutellier, J. Rosenthal, L. Tan,
+        Y. Yu, and N. Nagappan, "Problems and Opportunities in Training Deep
+        Learning Software Systems: An Analysis of Variance," Proceedings of
+        the 35th IEEE/ACM International Conference on Automated Software
+        Engineering, pp. 771–783, 2020.
+    [3] B. Chen, M. Wen, Y. Shi, D. Lin, G. K. Rajbahadur, and Z. M. Jiang,
+        “Towards Training Reproducible Deep Learning Models,”
+        Proceedings of the 44th International Conference on Software Engineering,
+        2022.
+    [4] David Goldberg. 1991. What Every Computer Scientist Should Know About
+        Floating-Point Arithmetic. ACM Comput. Surv. 23, 1 (1991), 5–48
+
+
+    """
+    np.random.seed(seed)
+
+
+
+def _expand_reduced(grad: np.ndarray, axis: Axis, keepdims: bool, target_shape: Tuple[int, ...]) -> np.ndarray:
+
+    """Expand a reduction's upstream gradient back to the input shape.
+
+    Consider the gradient of ``(wᵀ @ x).sum()``. Let ``z = wᵀ @ x`` be an array
+    with shape ``(2, 3)`` (e.g. ``w`` is ``(2, 2)`` and ``x`` is ``(2, 3)``), and
+    let ``out = z.sum()`` be a scalar:
+
+        z = wᵀ @ x = [ z00  z01  z02 ]    out = z.sum()
+                     [ z10  z11  z12 ]
+
+        out = z00 + z01 + z02 + z10 + z11 + z12 
+
+    Because ``out`` is the sum of every element of ``z``, each element has local
+    derivative:
+
+        d out / d z_ij = 1.
+
+    When ``out.backward()`` is called, the engine populates ``out.grad`` with the
+    upstream gradient. See ``Tensor.sum`` for the derivative rule used to compute
+    ``d out / d z`` when ``out = z.sum()``. 
+    
+    To obtain the gradient with respect to ``z``, this scalar
+    must be expanded to the same shape as ``z``. Since every element of ``z`` has
+    local derivative 1, the upstream gradient is repeated across all positions
+    using NumPy broadcasting [5]. For an upstream gradient equal to 1:
+
+        np.broadcast_to(grad, (2, 3)) = [ 1  1  1 ]
+                                        [ 1  1  1 ]
+
+    More generally, if the upstream scalar were ``g``, every element would receive
+    ``g``.
+
+    This is a full reduction because ``axis is None``. No reduced axes need to be
+    reinserted before broadcasting the scalar to the original input shape.
+
+    For a partial reduction, the removed dimensions must first be restored. For
+    example, ``z.sum(axis=1)`` collapses the three columns and produces an output
+    with shape ``(2,)``. Its upstream gradient also has shape ``(2,)``. Before it
+    can be broadcast to ``z``'s shape, axis 1 is reinserted with
+    ``np.expand_dims``, producing shape ``(2, 1)``:
+
+        grad.shape                         -> (2,)
+        np.expand_dims(grad, axis=1)       -> (2, 1)
+        np.broadcast_to(grad, (2, 3))      -> (2, 3)
+
+    This restores the gradient shape required by the input of the reduction.
+
+    The ``keepdims`` flag decides whether that first step is needed. With
+    ``keepdims=True`` the reduced axis is *kept* as a size-1 dimension (e.g.
+    ``z.sum(axis=1, keepdims=True)`` already has shape ``(2, 1)``), so the
+    gradient is already aligned with the input and ``np.expand_dims`` is skipped
+    — only the broadcast runs. The reinsertion therefore happens exactly when an
+    axis was reduced *and* dropped, i.e. ``axis is not None and not keepdims``.
+
+    Parameters
+    ----------
+    grad : np.ndarray
+        Upstream gradient, carrying the reduction's (smaller) output shape.
+    axis : int, tuple of int, or None
+        Axis/axes that were reduced; ``None`` means a full reduction.
+    keepdims : bool
+        Whether the reduction kept the reduced axes as size-1 dimensions.
+    target_shape : tuple of int
+        Shape of the reduction's input — the shape to expand the gradient to.
+
+    Returns
+    -------
+    np.ndarray
+        ``grad`` expanded (re-inserted if needed, then broadcast) to
+        ``target_shape``.
+
+    References
+    ----------
+    [5] NumPy Developers, "Broadcasting," NumPy User Guide:
+    https://numpy.org/devdocs/user/basics.broadcasting.html
     """
     if axis is not None and not keepdims:
+        # Put the removed axes back as size-1 so the array re-aligns with target.
         grad = np.expand_dims(grad, axis)
+    # Stretch the size-1 axes up to the full input shape (copy across the
+    # elements that were collapsed into each output entry).
     return np.broadcast_to(grad, target_shape)
 
 
 class Tensor:
-    """An n-dimensional array node in the autograd graph.
+    """An n-dimensional array node in the autograd computational graph.
+
+    A ``Tensor`` stores both a numerical value and the information required to
+    propagate gradients through the operation that created it. Tensors may be
+    leaf nodes, such as model parameters and inputs, or intermediate nodes
+    produced by arithmetic operations.
+
+    Consider the expression:
+
+        out = (wᵀ @ x).sum()
+
+    where ``@`` is **matrix multiplication** — the linear-algebra row-by-column
+    product, *not* the elementwise ``*`` — and ``wᵀ`` is the transpose of ``w``.
+    The ``wᵀ @ x`` form is the usual way to write a linear layer. (For matrices
+    ``A`` and ``B``, ``A @ B`` requires the inner dimensions to match:
+    ``(m, k) @ (k, n) -> (m, n)``.) With ``w`` of shape ``(2, 2)`` and ``x`` of
+    shape ``(2, 3)``, ``z = wᵀ @ x`` has shape ``(2, 3)``. The engine constructs
+    the following computational graph:
+
+        w ----\
+               (@) ---> z ---> sum ---> out
+        x ----/        (2, 3)           scalar
+
+    Here, ``z = wᵀ @ x`` is an intermediate ``Tensor`` whose parent nodes are
+    ``w`` and ``x``. The scalar ``out`` is another ``Tensor``, created by
+    reducing all elements of ``z``.
+
+    When ``out.backward()`` is called, the engine seeds ``out.grad`` with 1,
+    corresponding to:
+
+        d out / d out = 1
+
+    It then traverses the graph in reverse topological order. The ``sum`` node
+    uses ``_expand_reduced`` to restore the reduced dimensions and broadcast its
+    upstream gradient back to ``z.shape``. The matrix-multiplication node then
+    applies the chain rule for a matrix product:
+
+        d out / d x = w @ (d out / d z)
+        d out / d w = x @ (d out / d z)ᵀ
+
+    See ``Tensor.__matmul__`` for the local derivative rules used to compute
+    ``d z / d x`` and ``d z / d w`` when ``z = wᵀ @ x``. See ``Tensor.sum`` for
+    the derivative rule used to compute ``d out / d z`` when
+    ``out = z.sum()``.
+
+    The resulting gradients are accumulated in ``x.grad`` and ``w.grad``.
+    Gradient accumulation is necessary because the same tensor may contribute
+    to the final output through more than one path in the graph.
 
     Attributes
     ----------
     data : np.ndarray
-        The forward value held by this node.
+        Numerical value computed. For example, the ``data`` stored by ``z`` in
+        ``z = wᵀ @ x`` is the matrix product of ``w.data.T`` and ``x.data``.
+
     grad : np.ndarray
-        The accumulated gradient of the final scalar output w.r.t. ``data``.
-        Same shape as ``data``; initialised to zeros.
+        Gradient of the final scalar output with respect to ``data``. It has
+        the same shape as ``data`` and is initialized to zeros. Gradients are
+        accumulated rather than overwritten because a tensor may influence the
+        output through multiple computational paths.
+
     requires_grad : bool
-        If False, this node is treated as a constant and no gradient is
-        accumulated into it.
+        Whether this tensor should accumulate gradients. When ``False``, the
+        tensor is treated as a constant during the backward pass.
+
     _backward : Callable[[], None]
-        Closure that propagates ``self.grad`` into the gradients of the parents.
+        Closure containing the local derivative rule for the operation that
+        created this tensor. It uses ``self.grad`` as the upstream gradient and
+        accumulates the corresponding gradients into the parent tensors.
+
+        For ``z = wᵀ @ x``, the closure conceptually performs:
+
+            x.grad += w.data @ z.grad
+            w.grad += x.data @ z.grad.T
+
     _prev : set[Tensor]
-        The parent nodes that produced this tensor.
+        Parent tensors used to create this tensor. For ``z = wᵀ @ x``,
+        ``z._prev`` contains ``w`` and ``x``. Leaf tensors normally have no
+        parents.
+
     _op : str
-        Label of the producing op (for debugging / graph visualisation).
+        Human-readable label for the operation that created this tensor, such
+        as ``"*"``, ``"+"``, ``"@"``, or ``"sum"``. It is used for debugging and
+        computational-graph visualization.
     """
 
     def __init__(
@@ -61,10 +310,29 @@ class Tensor:
         _children: Iterable["Tensor"] = (),
         _op: str = "",
         requires_grad: bool = True,
+        dtype: Optional[np.dtype] = None,
     ) -> None:
+        # If the input is already a Tensor, extract only its numerical data.
+        # This avoids wrapping a Tensor inside another Tensor.
         if isinstance(data, Tensor):
             data = data.data
-        self.data: np.ndarray = np.asarray(data, dtype=np.float64)
+
+        # Store the numerical value of this node as a NumPy array. The element
+        # type is flexible so the engine can run in float64/32/16/... :
+        #   * an explicit ``dtype`` always wins;
+        #   * otherwise a float array is kept as-is, so the precision chosen
+        #     for the leaves propagates through every op result unchanged;
+        #   * anything else (Python lists/scalars, integer arrays) adopts the
+        #     library-wide ``default_dtype`` (float64 by default, which keeps
+        #     numerical gradient checks stable).
+        if dtype is not None:
+            self.data: np.ndarray = np.asarray(data, dtype=dtype)
+        elif isinstance(data, np.ndarray) and np.issubdtype(data.dtype, np.floating):
+            self.data = data
+        else:
+            self.data = np.asarray(data, dtype=default_dtype)
+
+        # The gradient mirrors data's shape AND dtype, so precision is uniform.
         self.grad: np.ndarray = np.zeros_like(self.data)
         self.requires_grad: bool = requires_grad
         self._backward: Callable[[], None] = lambda: None
@@ -105,7 +373,11 @@ class Tensor:
     # Elementwise binary ops
     # ------------------------------------------------------------------ #
     def __add__(self, other: ArrayLike) -> "Tensor":
-        """Elementwise addition with broadcasting."""
+        """Elementwise addition with broadcasting.
+
+        Backward: d out/d self = 1 and d out/d other = 1, so each parent just
+        receives ``out.grad`` (``_unbroadcast`` undoes any broadcasting).
+        """
         other = self._as_tensor(other)
         out = Tensor(
             self.data + other.data,
@@ -124,7 +396,11 @@ class Tensor:
         return out
 
     def __mul__(self, other: ArrayLike) -> "Tensor":
-        """Elementwise multiplication with broadcasting."""
+        """Elementwise multiplication with broadcasting.
+
+        Backward: d out/d self = other and d out/d other = self, i.e.
+        ``self.grad += other * out.grad`` and ``other.grad += self * out.grad``.
+        """
         other = self._as_tensor(other)
         out = Tensor(
             self.data * other.data,
@@ -143,7 +419,11 @@ class Tensor:
         return out
 
     def __pow__(self, other: Union[int, float]) -> "Tensor":
-        """Elementwise power by a constant exponent."""
+        """Elementwise power by a constant exponent.
+
+        Backward: for ``out = self ** n``, d out/d self = n * self**(n-1), so
+        ``self.grad += n * self**(n-1) * out.grad``.
+        """
         assert isinstance(other, (int, float)), "exponent must be a scalar constant"
         out = Tensor(self.data ** other, (self,), f"**{other}", self.requires_grad)
 
@@ -155,7 +435,11 @@ class Tensor:
         return out
 
     def __matmul__(self, other: "Tensor") -> "Tensor":
-        """Batched matrix multiplication (``@``)."""
+        """Batched matrix multiplication (``@``).
+
+        Backward: for ``out = A @ B``, dA = out.grad @ Bᵀ and dB = Aᵀ @ out.grad
+        (transposing the last two axes; ``_unbroadcast`` folds any batch dims).
+        """
         other = self._as_tensor(other)
         out = Tensor(
             self.data @ other.data,
@@ -286,7 +570,11 @@ class Tensor:
     # Reductions (must broadcast the upstream grad back on the way down)
     # ------------------------------------------------------------------ #
     def sum(self, axis: Axis = None, keepdims: bool = False) -> "Tensor":
-        """Sum over ``axis``."""
+        """Sum over ``axis``.
+
+        Backward: d out/d self = 1 for every summed element, so ``out.grad`` is
+        broadcast back to ``self.shape`` via ``_expand_reduced``.
+        """
         out = Tensor(
             self.data.sum(axis=axis, keepdims=keepdims),
             (self,),
@@ -472,16 +760,16 @@ class Tensor:
 # ---------------------------------------------------------------------- #
 # Tensor constructors
 # ---------------------------------------------------------------------- #
-def zeros(*shape: int, requires_grad: bool = True) -> Tensor:
-    """Create a tensor of zeros."""
-    return Tensor(np.zeros(shape), requires_grad=requires_grad)
+def zeros(*shape: int, requires_grad: bool = True, dtype: Optional[np.dtype] = None) -> Tensor:
+    """Create a tensor of zeros (``dtype`` defaults to ``default_dtype``)."""
+    return Tensor(np.zeros(shape, dtype=dtype or default_dtype), requires_grad=requires_grad)
 
 
-def ones(*shape: int, requires_grad: bool = True) -> Tensor:
-    """Create a tensor of ones."""
-    return Tensor(np.ones(shape), requires_grad=requires_grad)
+def ones(*shape: int, requires_grad: bool = True, dtype: Optional[np.dtype] = None) -> Tensor:
+    """Create a tensor of ones (``dtype`` defaults to ``default_dtype``)."""
+    return Tensor(np.ones(shape, dtype=dtype or default_dtype), requires_grad=requires_grad)
 
 
-def randn(*shape: int, requires_grad: bool = True) -> Tensor:
-    """Create a tensor of standard-normal samples."""
-    return Tensor(np.random.randn(*shape), requires_grad=requires_grad)
+def randn(*shape: int, requires_grad: bool = True, dtype: Optional[np.dtype] = None) -> Tensor:
+    """Create a tensor of standard-normal samples (``dtype`` defaults to ``default_dtype``)."""
+    return Tensor(np.random.randn(*shape).astype(dtype or default_dtype), requires_grad=requires_grad)

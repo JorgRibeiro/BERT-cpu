@@ -2,7 +2,7 @@
 
 """
 
-from bert_cpu.engine import Tensor, ones, randn, zeros
+from bert_cpu.engine import Tensor, ones, randn, set_seed, zeros
 from bert_cpu.nn import (
     Dropout,
     Embedding,
@@ -27,6 +27,7 @@ from bert_cpu.tokenizer import Tokenizer
 
 __all__ = [
     "Tensor",
+    "set_seed",
     "zeros",
     "ones",
     "randn",
