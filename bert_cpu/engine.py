@@ -57,9 +57,63 @@ Axis = Optional[Union[int, Tuple[int, ...]]]
 
 default_dtype: np.dtype = np.float64 
 
-# Exotic data types such as float8 could also work if you supply a dtype object from 
+# Exotic data types such as float8 could also work if you supply a dtype object from
 # a package like ``ml_dtypes``.
 
+
+# --------------------------------------------------------------------------- #
+# Floating-point-operation (FLOP) counter
+# --------------------------------------------------------------------------- #
+# A single global tally of the floating-point operations the engine executes, so
+# a training loop can report the compute it actually performs (see
+# ``exercises/q05_binary_classification.py``). It is instrumented in two places:
+# the *forward* cost of every op is added in ``Tensor.__init__`` (derived from the
+# op label and the output size), and the *matmul backward* — the dominant cost of
+# the backward pass — is added inside ``__matmul__``. Conventions: a matmul counts
+# ``2 * output_elements * shared_dim`` (one multiply + one add per MAC); an
+# elementwise op counts one FLOP per output element; pure data movement
+# (reshape / transpose / cat / indexing) counts zero. So the tally is *exact* for
+# the matmuls that dominate and approximate for the cheap ops. Wrap the work you
+# want to measure between ``reset_flops()`` and ``flop_count()``.
+_flop_count: int = 0
+
+
+def reset_flops() -> None:
+    """Zero the global FLOP counter."""
+    global _flop_count
+    _flop_count = 0
+
+
+def flop_count() -> int:
+    """Return the number of FLOPs counted since the last ``reset_flops()``."""
+    return _flop_count
+
+
+def _add_flops(n: int) -> None:
+    global _flop_count
+    _flop_count += int(n)
+
+
+# Ops that only move or compare data — no floating-point arithmetic to tally.
+_ZERO_FLOP_OPS = frozenset({"reshape", "transpose", "getitem", "cat", "max"})
+
+
+def _forward_flops(op: str, out_data: np.ndarray, children) -> int:
+    """FLOPs of one forward op, from its label, output size and (ordered) operands."""
+    if not op:
+        return 0                                   # a leaf tensor: nothing computed
+    n = out_data.size
+    if op == "@":                                  # 2 * out_elements * shared inner dim
+        return 2 * n * children[0].data.shape[-1]
+    if op in _ZERO_FLOP_OPS:
+        return 0
+    if op in ("sum", "mean", "var"):               # one read/add per input element
+        return children[0].data.size if children else n
+    if op == "softmax":                            # exp + sum + divide, roughly
+        return 3 * n
+    if op == "gelu":                               # several mul/add/tanh per element
+        return 8 * n
+    return n                                       # elementwise: +, *, **k, exp, log, ...
 
 
 def set_seed(seed: int) -> None:
@@ -220,6 +274,9 @@ def _expand_reduced(grad: np.ndarray, axis: Axis, keepdims: bool, target_shape: 
 class Tensor:
     """An n-dimensional array node in the autograd computational graph.
 
+    For an accessible introduction to computational graphs, see Andrew Ng's
+    explanation here: https://youtu.be/hCP1vGoCdYU?si=DvIRDH0MucRckYcU 
+    
     A ``Tensor`` stores both a numerical value and the information required to
     propagate gradients through the operation that created it. Tensors may be
     leaf nodes, such as model parameters and inputs, or intermediate nodes
@@ -414,6 +471,11 @@ class Tensor:
         self._prev: set = set(_children)
         self._op: str = _op
 
+        # Tally this op's forward FLOPs into the global counter (0 for leaves and
+        # pure data-movement ops). ``_children`` is still ordered here, which the
+        # matmul cost needs (its inner dimension comes from the first operand).
+        _add_flops(_forward_flops(_op, self.data, tuple(_children)))
+
     # ------------------------------------------------------------------ #
     # Internal helpers
     # ------------------------------------------------------------------ #
@@ -536,10 +598,12 @@ class Tensor:
 
         def _backward() -> None:
             if self.requires_grad:
-                grad = out.grad @ np.swapaxes(other.data, -1, -2)
+                grad = out.grad @ np.swapaxes(other.data, -1, -2)   # dA = grad @ Bᵀ
+                _add_flops(2 * self.data.size * out.grad.shape[-1])
                 self.grad += self._unbroadcast(grad, self.shape)
             if other.requires_grad:
-                grad = np.swapaxes(self.data, -1, -2) @ out.grad
+                grad = np.swapaxes(self.data, -1, -2) @ out.grad    # dB = Aᵀ @ grad
+                _add_flops(2 * other.data.size * self.data.shape[-2])
                 other.grad += self._unbroadcast(grad, other.shape)
 
         out._backward = _backward

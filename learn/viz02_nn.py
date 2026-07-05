@@ -64,6 +64,12 @@ def demo_linear_chain() -> None:
     # parameter (row 0 of each is that layer's bias). Show them, and the input.
     print(console.text("\nThe network is its three weight matrices ") + console.math("W1, W2, W3")
           + console.text(" (first row of each is\nthe neuron's bias in that layer). Together they hold every parameter the network has:\n"))
+
+    print(console.text("For how a network's layers are modelled as matrices, see Andrew Ng's two\nvideos in sequence: ")
+        + console.value("https://youtu.be/CcRkHl75Z-Y?si=JRsu9U6zsEjpkzfC")
+        + console.text("\n                    ")
+        + console.value("https://youtu.be/rMOdrD61IoU?si=2FNLuNEHVKkG6TiB") + console.text("\n"))
+
     for w in (layer1.weight, layer2.weight, layer3.weight):
         print(console.math(f"  {w.label}  (shape {w.shape[0]}x{w.shape[1]}) ="))
         print(console.fmt_matrix(w.data, indent="      "))

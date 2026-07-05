@@ -245,6 +245,9 @@ def demo_gradient_graph() -> None:
     print(console.text("The table below lays out the computational graph, one row per node, and is\nwhere each ")
         + console.label("grad") + console.text(" gets computed (still '-' until backprop reaches it):\n"))
 
+    print(console.text("For an accessible introduction to computational graphs, see Andrew Ng's\nexplanation here: ")
+        + console.value("https://youtu.be/hCP1vGoCdYU?si=DvIRDH0MucRckYcU"))
+
     draw_graph(y, known=set())
 
 
