@@ -12,3 +12,24 @@
 - A questão escolhida foi a **q04 — ativações aprendíveis**, que combina ReLU, GELU e SiLU por meio de coeficientes aprendidos durante o treinamento.
 - Escolhi a q04 porque ela se encaixa melhor no conhecimento que construí até agora sobre funções de ativação e permite aprofundá-lo com parâmetros aprendíveis.
 - O artigo de referência investiga a proposta principalmente no contexto de LLMs. Neste projeto, avaliaremos a ideia em um contexto diferente: classificação binária tabular no Adult.
+
+### 3 - Investigar a formulação da ativação oculta
+- **Ideia inicial:** comparar cinco configurações para a ativação da camada oculta: ReLU fixa, GELU fixa, SiLU fixa, mistura fixa uniforme `(ReLU + GELU + SiLU) / 3` e mistura normalizada aprendível iniciada com pesos iguais a `1/3`.
+- **Objetivo:** descobrir se combinar ativações melhora a classificação e separar o efeito de apenas misturá-las do efeito de aprender os coeficientes. A mistura fixa será o controle direto da mistura aprendível, pois ambas calcularão as mesmas três funções.
+- **Controles iniciais:** manter `hidden=64`, 100 épocas, Adam, `lr=1e-2`, split, seed e demais configurações constantes.
+- **Efeito final esperado:** a mistura normalizada aprendível poderá alcançar acurácia de validação igual ou superior à melhor ativação fixa e à mistura uniforme. Espera-se mais FLOPs que uma ativação única, mas custo próximo ao da mistura fixa.
+- **Observação:** esta é somente a ideia e a hipótese iniciais. Nenhuma configuração, integração ou execução experimental deste passo foi implementada.
+
+### 4 - Investigar a parametrização e a restrição dos coeficientes aprendíveis
+- **Ideia inicial:** comparar a mistura normalizada por softmax, iniciada com `beta=(0,0,0)` e pesos `pi=(1/3,1/3,1/3)`, com a mistura livre iniciada em `alpha=(1/3,1/3,1/3)`.
+- **Objetivo:** comparar o efeito conjunto da parametrização e da restrição dos coeficientes, garantindo que as duas versões comecem representando a mesma função e com a mesma escala.
+- **Controles iniciais:** usar ReLU, GELU e SiLU nas duas versões e manter largura 64, dados, split, seed, treinamento e avaliação constantes.
+- **Efeito final esperado:** a versão normalizada poderá produzir escala e coeficientes mais estáveis e interpretáveis; a versão livre terá maior flexibilidade e poderá reduzir mais a loss de treino, mas com maior risco de coeficientes negativos, aumento de escala ou pior generalização. Os FLOPs deverão ser próximos, com pequena diferença causada pelo softmax.
+- **Observação:** esta é somente a ideia e a hipótese iniciais. Nenhuma alteração de inicialização, camada ou treinamento deste passo foi implementada.
+
+### 5 - Investigar a largura da camada oculta
+- **Ideia inicial:** avaliar a q04 normalizada com larguras `hidden=32`, `hidden=64` e `hidden=128`, usando 64 como referência.
+- **Objetivo:** analisar como a capacidade da MLP afeta acurácia, parâmetros e FLOPs, procurando o ponto em que aumentar a largura deixa de produzir ganho relevante.
+- **Controles iniciais:** manter a mistura normalizada, as três ativações, 100 épocas, Adam, `lr=1e-2`, dados, split, seed e avaliação constantes.
+- **Efeito final esperado:** aumentar a largura deverá elevar parâmetros e FLOPs aproximadamente de forma linear. A acurácia poderá melhorar de 32 para 64, enquanto o ganho de 64 para 128 poderá ser menor, indicando retornos decrescentes ou maior overfitting.
+- **Observação:** esta é somente a ideia e a hipótese iniciais. Nenhuma largura alternativa ou execução experimental deste passo foi implementada.
