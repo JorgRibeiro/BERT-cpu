@@ -33,3 +33,16 @@
 - **Controles iniciais:** manter a mistura normalizada, as três ativações, 100 épocas, Adam, `lr=1e-2`, dados, split, seed e avaliação constantes.
 - **Efeito final esperado:** aumentar a largura deverá elevar parâmetros e FLOPs aproximadamente de forma linear. A acurácia poderá melhorar de 32 para 64, enquanto o ganho de 64 para 128 poderá ser menor, indicando retornos decrescentes ou maior overfitting.
 - **Observação:** esta é somente a ideia e a hipótese iniciais. Nenhuma largura alternativa ou execução experimental deste passo foi implementada.
+
+### 6 - Realizar o Passo 4 do enunciado: análise de trade-offs
+- **Ideia inicial:** depois de concluir as três investigações, reunir os pares brutos de desempenho e FLOPs de todas as configurações válidas em uma tabela e em um gráfico de desempenho versus FLOPs. A comparação deverá considerar eficiência computacional, dominância de Pareto e ganhos marginais, sem usar tempo de execução como substituto de FLOPs.
+- **Objetivo:** avaliar conjuntamente qualidade preditiva e custo computacional para transformar os resultados experimentais em uma decisão justificável, em vez de escolher uma configuração apenas pela maior acurácia.
+- **Perguntas obrigatórias do enunciado:**
+
+  1. Qual configuração apresenta o melhor retorno por FLOP, isto é, o maior desempenho em relação ao custo computacional?
+  2. A partir de qual configuração começam a ocorrer retornos decrescentes, de modo que o aumento do custo deixa de produzir ganhos relevantes?
+  3. Qual variável provoca grande variação em FLOPs, mas pouca alteração no desempenho? Existe alguma variável com comportamento contrário?
+  4. Com um orçamento computacional fixo em FLOPs, qual configuração escolher? Justifique a escolha com base nos resultados.
+
+- **Efeito final esperado:** obter uma análise apoiada nos valores medidos que identifique configurações eficientes, dominadas ou pertencentes à fronteira de Pareto, além de explicitar os critérios usados para retorno por FLOP, retornos decrescentes e orçamento fixo.
+- **Observação:** este passo registra somente o plano e as perguntas que deverão ser respondidas. A fórmula de retorno por FLOP, o orçamento de referência, os gráficos, as respostas e as conclusões ainda não foram definidos ou produzidos.
