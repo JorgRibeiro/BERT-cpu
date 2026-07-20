@@ -263,10 +263,34 @@ critério, como `itens concluídos / total de itens`.
   operações instrumentadas, não tempo, energia ou memória.
 - Relate todas as configurações válidas, inclusive resultados negativos ou
   inesperados.
-- Produza tabela e gráfico de acurácia versus FLOPs. Analise dominância/Pareto,
-  retorno computacional, retornos decrescentes e escolha sob orçamento fixo.
-- Defina “retorno por FLOP” antes de observar os resultados e preserve sempre os
-  pares brutos `(FLOPs, acurácia)`.
+- Execute integralmente a análise obrigatória de trade-offs definida na seção
+  seguinte.
+
+## Análise obrigatória de trade-offs — Passo 4 do enunciado
+
+Depois de concluir as investigações das três variáveis, reúna todas as
+configurações válidas em uma tabela e em um gráfico de desempenho versus FLOPs.
+Preserve os pares brutos `(FLOPs, desempenho)`, defina a métrica de desempenho e
+a fórmula de “retorno por FLOP” antes de observar os resultados e não substitua
+FLOPs por tempo, energia ou memória.
+
+Responda explicitamente, com base nos resultados medidos, a todas as perguntas:
+
+1. Qual configuração apresenta o melhor retorno por FLOP, isto é, o maior
+   desempenho em relação ao custo computacional?
+2. A partir de qual configuração começam a ocorrer retornos decrescentes, de
+   modo que o aumento do custo deixa de produzir ganhos relevantes?
+3. Qual variável provoca grande variação em FLOPs, mas pouca alteração no
+   desempenho? Existe alguma variável com comportamento contrário?
+4. Com um orçamento computacional fixo em FLOPs, qual configuração escolher?
+   Justifique a escolha com base nos resultados.
+
+Além das respostas, identifique configurações dominadas e a fronteira de Pareto
+quando os dados permitirem. Declare o orçamento fixo e o critério operacional de
+“ganho relevante” antes de aplicá-los. Se as medições não sustentarem uma
+resposta, registre-a como inconclusiva em vez de completar a lacuna por hipótese.
+Esta seção é um requisito futuro: nenhuma resposta ou conclusão experimental foi
+produzida ainda.
 
 ## Fluxo de trabalho
 
@@ -275,7 +299,8 @@ critério, como `itens concluídos / total de itens`.
 3. implementar, validar, executar e analisar `A0`–`A4`;
 4. implementar, validar, executar e analisar `C0`–`C1`;
 5. implementar, validar, executar e analisar `H32`–`H128`;
-6. gerar a análise geral e atualizar reprodução, IA e apresentação.
+6. executar a análise obrigatória de trade-offs e responder às quatro perguntas;
+7. gerar a análise geral e atualizar reprodução, IA e apresentação.
 
 Não implemente todas as variáveis simultaneamente. Feche os artefatos e a
 interpretação de cada etapa antes de iniciar a seguinte.
