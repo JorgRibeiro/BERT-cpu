@@ -26,6 +26,10 @@ respectivamente.
 - Contexto teórico: a referência apresenta a ideia em modelos de linguagem; o
   estudo avaliará sua aplicação em classificação tabular. Não alegue ineditismo
   nem transfira conclusões do artigo sem evidência no Adult.
+- Variáveis confirmadas, nesta ordem: formulação da ativação oculta,
+  parametrização/restrição dos coeficientes e largura da camada oculta.
+- As três variáveis serão estudadas separadamente; conclua implementação,
+  validação, execução e análise de uma antes de iniciar a seguinte.
 
 Na baseline:
 
@@ -54,7 +58,6 @@ condicionada por amostra.
 
 ## Decisões pendentes
 
-- Variáveis investigadas e seus níveis.
 - Hipóteses registradas antes das execuções.
 - Configurações experimentais e baseline executada de referência.
 - Métrica primária para selecionar configurações.
@@ -64,6 +67,154 @@ condicionada por amostra.
 
 Não feche uma dessas decisões sem confirmação do estudante quando ela mudar o
 rumo da investigação.
+
+## Plano pré-experimental das variáveis
+
+As seções abaixo registram ideias e hipóteses iniciais. **Nada foi implementado,
+executado ou validado.** Não apresente efeitos esperados como resultados e não
+combine níveis de variáveis diferentes durante estas três etapas.
+
+### Controles comuns
+
+Salvo quando for a própria variável investigada, preserve:
+
+- Adult, pré-processamento e os mesmos índices de treino e validação;
+- `cpu.set_seed(0)` antes de cada execução independente;
+- full-batch, Adam, `lr=1e-2`, 100 épocas e validação de 20%;
+- 108 entradas, duas saídas, loss e procedimento de avaliação;
+- mesma inicialização das camadas lineares quando as formas forem iguais;
+- mesma janela de medição dos FLOPs e mesmo formato de logs;
+- seleção por validação e uso do teste apenas na avaliação final.
+
+Registre um hash ou identificador do split. Não acrescente forwards de
+diagnóstico dentro da região de FLOPs apenas em algumas configurações: calcule
+estatísticas fora da janela medida ou aplique o mesmo diagnóstico a todas. Para
+cada execução, registre ID, commit, seed, split, configuração, parâmetros,
+loss, acurácias, FLOPs e observações numéricas.
+
+### Variável 1 — formulação da ativação oculta
+
+Manter `hidden=64` e alterar somente como `z = fc1(x)` produz `h`:
+
+| ID | Configuração | Formulação |
+|---|---|---|
+| `A0` | ReLU fixa | `h = ReLU(z)` |
+| `A1` | GELU fixa | `h = GELU(z)` |
+| `A2` | SiLU fixa | `h = SiLU(z)` |
+| `A3` | mistura uniforme fixa | `h = (ReLU(z) + GELU(z) + SiLU(z)) / 3` |
+| `A4` | mistura normalizada aprendível | `pi = softmax(beta)` e `h = sum(pi_k * phi_k(z))`, com `beta=(0,0,0)` |
+
+Objetivo: distinguir três efeitos — escolher outra ativação fixa, combinar três
+ativações e aprender os pesos da combinação. `A0` é a baseline; `A1` e `A2` são
+controles individuais. `A3` e `A4` começam com a mesma função e pesos efetivos
+`(1/3, 1/3, 1/3)`, tornando `A3 x A4` a comparação central para o efeito do
+aprendizado.
+
+Hipótese inicial: `A4` poderá igualar ou superar a melhor ativação fixa e `A3`
+em acurácia de validação. `A3` e `A4` deverão ter custos semelhantes, mas não
+idênticos; ambos calculam três ativações, enquanto `A4` também calcula o softmax
+e atualiza três parâmetros.
+
+Implementação futura exigida:
+
+- tornar a ativação da mesma `AdultMLP` configurável, sem duplicar a task;
+- preservar ReLU como comportamento padrão;
+- implementar a mistura fixa com constantes, sem `Parameter`;
+- integrar `NormalizedLearnableActivation` como submódulo e confirmar que os
+  três `beta` aparecem em `model.parameters()`;
+- testar numericamente que `A3` e `A4` produzem a mesma saída inicial;
+- registrar, em `A4`, `beta`, pesos efetivos `pi` e contribuição média absoluta
+  de cada termo `pi_k * phi_k(z)`.
+
+Cuidados: `A0`–`A3` têm 7.106 parâmetros e `A4` tem 7.109. GELU e SiLU podem
+ser muito correlacionadas no domínio visitado, deixando os coeficientes pouco
+identificáveis. Um `pi` maior não prova maior importância sem considerar a
+escala de `phi_k(z)`.
+
+### Variável 2 — parametrização e restrição dos coeficientes
+
+Manter `hidden=64`, ReLU, GELU e SiLU e comparar duas formas aprendíveis que
+representam a mesma função inicial:
+
+| ID | Configuração | Inicialização efetiva |
+|---|---|---|
+| `C0` | normalizada por softmax | `beta=(0,0,0)`, logo `pi=(1/3,1/3,1/3)` |
+| `C1` | livre, sem normalização | `alpha=(1/3,1/3,1/3)` |
+
+Objetivo: comparar a formulação normalizada, com pesos positivos somando 1, à
+formulação livre, que permite pesos negativos e escala global variável. A
+comparação envolve tanto a restrição quanto a geometria de parametrização do
+softmax; não atribua o efeito somente à restrição.
+
+Hipótese inicial: `C0` poderá preservar melhor a escala e produzir pesos mais
+interpretáveis; `C1` terá maior flexibilidade e poderá reduzir mais a loss de
+treino, mas também poderá gerar coeficientes negativos, crescimento de escala
+ou pior generalização. Os FLOPs devem ser próximos, não presumidos idênticos.
+
+Implementação futura exigida:
+
+- permitir escolher as duas classes da q04 na mesma MLP;
+- preservar o default pedagógico `alpha=(1,1,1)` da classe existente e expor
+  uma inicialização configurável de `1/3` para o experimento Adult;
+- confirmar que `C0` e `C1` produzem a mesma saída inicial para a mesma entrada;
+- confirmar que os três coeficientes são atualizados pelo Adam;
+- registrar `beta` e `pi` em `C0`; em `C1`, registrar `alpha`, sua soma, sinais,
+  norma e a escala da saída;
+- registrar as contribuições efetivas `peso_k * phi_k(z)`, não somente os
+  coeficientes finais.
+
+`C0` coincide com `A4`. Uma execução só pode ser reaproveitada se commit, split,
+seed, hiperparâmetros, instrumentação e código forem idênticos. Existe a
+possibilidade de o professor considerar esta variável um desdobramento da
+primeira; sinalize essa ambiguidade antes de associá-la à bonificação.
+
+### Variável 3 — largura da camada oculta
+
+Fixar antecipadamente `C0` — mistura normalizada, `beta=(0,0,0)` — e alterar
+somente `hidden`:
+
+| ID | `hidden` | Parâmetros estimados |
+|---|---:|---:|
+| `H32` | 32 | 3.557 |
+| `H64` | 64 | 7.109 |
+| `H128` | 128 | 14.213 |
+
+Para 108 entradas, duas saídas e três `beta`, use `P(h) = 111h + 5`; recalcule
+se a arquitetura mudar. `H64` é a referência. Não escolha a ativação desta
+etapa retrospectivamente a partir do melhor resultado anterior.
+
+`H64` coincide com `C0` apenas quando todos os metadados e o código são
+idênticos; nesse caso, a execução pode ser reutilizada sem duplicação.
+
+Objetivo: quantificar capacidade versus custo e procurar retornos decrescentes.
+Hipótese inicial: `H32` será mais econômico e poderá perder capacidade; `H128`
+elevará parâmetros e FLOPs aproximadamente em proporção à largura, mas poderá
+ter ganho marginal menor que `H32 -> H64` e maior diferença entre treino e
+validação.
+
+Implementação futura exigida:
+
+- expor `hidden` como configuração da mesma MLP;
+- preservar a mistura normalizada e todos os outros controles;
+- testar dimensões, contagem de parâmetros e saída `(2, batch)` em cada largura;
+- registrar loss/acurácia de treino e validação, parâmetros, FLOPs por época e
+  total, além dos ganhos marginais entre larguras;
+- analisar os pares brutos `(FLOPs, acurácia)` e as curvas por época.
+
+Modelos com larguras diferentes não podem iniciar com pesos idênticos; a seed
+garante repetibilidade, não equivalência tensor a tensor. Manter 100 épocas
+iguala o número de passos, não o orçamento em FLOPs. Não altere épocas para
+compensar isso dentro desta variável.
+
+### Avaliação exploratória posterior
+
+Somente depois de concluir e preservar as três análises isoladas, poderá ser
+avaliada uma configuração que reúna níveis selecionados das variáveis. Essa
+execução não substitui os estudos unifatoriais, não conta como nova variável e
+não permite atribuir causalmente o resultado a um único fator. Se realizada,
+selecione os níveis pela validação, rotule a configuração como exploratória e
+consulte o teste apenas na avaliação final. Por decisão do estudante, esta etapa
+não deve constar no `Passo-a-passo.md`.
 
 ## Fontes de verdade
 
@@ -100,8 +251,7 @@ critério, como `itens concluídos / total de itens`.
 - Antes de executar, registre cada hipótese: variável e níveis, controles,
   efeitos esperados em acurácia e FLOPs, justificativa e critério para
   sustentá-la, refutá-la ou considerá-la inconclusiva.
-- Varie uma variável por vez. Faça varreduras separadas para variáveis distintas;
-  combinações posteriores são exploratórias.
+- Varie uma variável por vez e mantenha as três varreduras independentes.
 - Mantenha dataset, pré-processamento, split, ordem, épocas, otimizador, learning
   rate e arquitetura constantes, salvo o fator declarado.
 - Reinicialize cada execução independente com `cpu.set_seed(0)` e assegure o
@@ -118,33 +268,17 @@ critério, como `itens concluídos / total de itens`.
 - Defina “retorno por FLOP” antes de observar os resultados e preserve sempre os
   pares brutos `(FLOPs, acurácia)`.
 
-## Cuidados específicos da q04
-
-- A mistura calcula todas as ativações; coeficientes pequenos não eliminam seus
-  FLOPs.
-- Três coeficientes acrescentam poucos parâmetros, mas as operações elementwise
-  aumentam o custo.
-- Um coeficiente maior não implica, sozinho, maior importância: considere também
-  a escala de saída de cada ativação.
-- A mistura livre inicializada com três coeficientes iguais a 1 pode produzir
-  escala maior que a baseline. Controle ou documente esse efeito ao comparar com
-  a versão normalizada.
-- Não confunda ganho da mistura com ganho do aprendizado dos coeficientes; use
-  controles adequados quando essa distinção fizer parte da hipótese.
-- Não conclua que uma ativação é universalmente superior a partir de um único
-  dataset e protocolo.
-
 ## Fluxo de trabalho
 
-1. escolher variáveis, níveis, controles e hipóteses;
-2. reproduzir e registrar a baseline;
-3. implementar e validar a integração da q04;
-4. executar as configurações controladas;
-5. gerar tabela, gráfico e análise;
-6. atualizar reprodução, registro de IA e apresentação.
+1. definir as hipóteses formais, métrica primária e regra de repetição;
+2. reproduzir e registrar `A0`, a baseline;
+3. implementar, validar, executar e analisar `A0`–`A4`;
+4. implementar, validar, executar e analisar `C0`–`C1`;
+5. implementar, validar, executar e analisar `H32`–`H128`;
+6. gerar a análise geral e atualizar reprodução, IA e apresentação.
 
-Priorize uma variável bem investigada e a entrega completa. Só amplie o escopo
-quando baseline, instrumentação e reprodução estiverem confiáveis.
+Não implemente todas as variáveis simultaneamente. Feche os artefatos e a
+interpretação de cada etapa antes de iniciar a seguinte.
 
 ## Artefatos experimentais
 
