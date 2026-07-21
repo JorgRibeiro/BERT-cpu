@@ -1,56 +1,139 @@
-# Passo a passo
+# Passo a passo — Adult + q01
 
-### 1 - Criar um AGENTS.md com o Codex - 5.6 Sol (Ultra)
-- A propósito por tras desse agente é me ajudar a chegar no caminho, até a entrega do projeto.
-- O mesmo, acada prompt ira salvar em um arquivo de memória oque estamos fazendo, qual o objetivo e nossa porcetagem de progresso.
-- O intuito dessa organizacão é documentar toda a jornada, com  intuito de na apresentacao, ter nocao de como foi feito, por que e qual foi o proximo passo.
-- O AGENTS.md será modificado constantemente.
+Este é o roteiro operacional do projeto. As justificativas e regras completas
+ficam em `AGENTS.md`.
 
-### 2 - Definir a tarefa e a questão de investigação
-- A tarefa escolhida foi a **classificação binária no conjunto Adult**, executada por `python -m exercises.task_binary_classification`.
-- Escolhi essa tarefa porque ela me pareceu mais tangível e testável, com resultados comparáveis por acurácia e FLOPs.
-- A questão escolhida foi a **q04 — ativações aprendíveis**, que combina ReLU, GELU e SiLU por meio de coeficientes aprendidos durante o treinamento.
-- Escolhi a q04 porque ela se encaixa melhor no conhecimento que construí até agora sobre funções de ativação e permite aprofundá-lo com parâmetros aprendíveis.
-- O artigo de referência investiga a proposta principalmente no contexto de LLMs. Neste projeto, avaliaremos a ideia em um contexto diferente: classificação binária tabular no Adult.
+## Estado atual
 
-### 3 - Investigar a formulação da ativação oculta
-- **Ideia inicial:** comparar cinco configurações para a ativação da camada oculta: ReLU fixa, GELU fixa, SiLU fixa, mistura fixa uniforme `(ReLU + GELU + SiLU) / 3` e mistura normalizada aprendível iniciada com pesos iguais a `1/3`.
-- **Objetivo:** descobrir se combinar ativações melhora a classificação e separar o efeito de apenas misturá-las do efeito de aprender os coeficientes. A mistura fixa será o controle direto da mistura aprendível, pois ambas calcularão as mesmas três funções.
-- **Controles iniciais:** manter `hidden=64`, 100 épocas, Adam, `lr=1e-2`, split, seed e demais configurações constantes.
-- **Efeito final esperado:** a mistura normalizada aprendível poderá alcançar acurácia de validação igual ou superior à melhor ativação fixa e à mistura uniforme. Espera-se mais FLOPs que uma ativação única, mas custo próximo ao da mistura fixa.
-- **Observação:** esta é somente a ideia e a hipótese iniciais. Nenhuma configuração, integração ou execução experimental deste passo foi implementada.
+- Branch: `q01-ativacoes-adult`, criada a partir da `main`.
+- q04 foi abandonada antes de implementação ou experimento.
+- Adult, q01, baseline, variáveis e protocolo estão confirmados.
+- Artefatos novos, configuração e hipóteses de V1 estão registrados.
+- Ainda não implementamos q01 nem executamos treinamentos experimentais.
+- Não fazer commit ou push sem autorização.
 
-### 4 - Investigar a parametrização e a restrição dos coeficientes aprendíveis
-- **Ideia inicial:** comparar a mistura normalizada por softmax, iniciada com `beta=(0,0,0)` e pesos `pi=(1/3,1/3,1/3)`, com a mistura livre iniciada em `alpha=(1/3,1/3,1/3)`.
-- **Objetivo:** comparar o efeito conjunto da parametrização e da restrição dos coeficientes, garantindo que as duas versões comecem representando a mesma função e com a mesma escala.
-- **Controles iniciais:** usar ReLU, GELU e SiLU nas duas versões e manter largura 64, dados, split, seed, treinamento e avaliação constantes.
-- **Efeito final esperado:** a versão normalizada poderá produzir escala e coeficientes mais estáveis e interpretáveis; a versão livre terá maior flexibilidade e poderá reduzir mais a loss de treino, mas com maior risco de coeficientes negativos, aumento de escala ou pior generalização. Os FLOPs deverão ser próximos, com pequena diferença causada pelo softmax.
-- **Observação:** esta é somente a ideia e a hipótese iniciais. Nenhuma alteração de inicialização, camada ou treinamento deste passo foi implementada.
+## O que vamos testar
 
-### 5 - Investigar a largura da camada oculta
-- **Ideia inicial:** avaliar a q04 normalizada com larguras `hidden=32`, `hidden=64` e `hidden=128`, usando 64 como referência.
-- **Objetivo:** analisar como a capacidade da MLP afeta acurácia, parâmetros e FLOPs, procurando o ponto em que aumentar a largura deixa de produzir ganho relevante.
-- **Controles iniciais:** manter a mistura normalizada, as três ativações, 100 épocas, Adam, `lr=1e-2`, dados, split, seed e avaliação constantes.
-- **Efeito final esperado:** aumentar a largura deverá elevar parâmetros e FLOPs aproximadamente de forma linear. A acurácia poderá melhorar de 32 para 64, enquanto o ganho de 64 para 128 poderá ser menor, indicando retornos decrescentes ou maior overfitting.
-- **Observação:** esta é somente a ideia e a hipótese iniciais. Nenhuma largura alternativa ou execução experimental deste passo foi implementada.
+### Variável 1 — função de ativação
 
-### 6 - Realizar o Passo 4 do enunciado: análise de trade-offs
-- **Ideia inicial:** depois de concluir as três investigações, reunir os pares brutos de desempenho e FLOPs de todas as configurações válidas em uma tabela e em um gráfico de desempenho versus FLOPs. A comparação deverá considerar eficiência computacional, dominância de Pareto e ganhos marginais, sem usar tempo de execução como substituto de FLOPs.
-- **Objetivo:** avaliar conjuntamente qualidade preditiva e custo computacional para transformar os resultados experimentais em uma decisão justificável, em vez de escolher uma configuração apenas pela maior acurácia.
-- **Perguntas obrigatórias do enunciado:**
+Mesma MLP `108 -> 64 -> 2`, mudando apenas a ativação:
 
-  1. Qual configuração apresenta o melhor retorno por FLOP, isto é, o maior desempenho em relação ao custo computacional?
-  2. A partir de qual configuração começam a ocorrer retornos decrescentes, de modo que o aumento do custo deixa de produzir ganhos relevantes?
-  3. Qual variável provoca grande variação em FLOPs, mas pouca alteração no desempenho? Existe alguma variável com comportamento contrário?
-  4. Com um orçamento computacional fixo em FLOPs, qual configuração escolher? Justifique a escolha com base nos resultados.
+- `F-RELU` — baseline;
+- `F-SIGMOID`;
+- `F-SWISH`;
+- `F-SOFTPLUS`.
 
-- **Efeito final esperado:** obter uma análise apoiada nos valores medidos que identifique configurações eficientes, dominadas ou pertencentes à fronteira de Pareto, além de explicitar os critérios usados para retorno por FLOP, retornos decrescentes e orçamento fixo.
-- **Observação:** este passo registra somente o plano e as perguntas que deverão ser respondidas. A fórmula de retorno por FLOP, o orçamento de referência, os gráficos, as respostas e as conclusões ainda não foram definidos ou produzidos.
+### Variável 2 — curvatura da Softplus
 
-## Registro das conversas
+Usar `softplus_beta(z) = log(1 + exp(beta*z)) / beta` com:
 
-### Conversa de planejamento — encerrada em 21/07/2026
-- **Encerramento:** esta conversa foi encerrada após a definição do escopo e do plano pré-experimental. As etapas 3 a 6 permanecem planejadas, mas ainda não foram implementadas ou executadas.
-- **Referência da conversa:** conversa de planejamento encerrada em 21/07/2026 e identificada pelo resumo abaixo. O conteúdo relevante foi preservado nos arquivos versionados, portanto não é necessário manter um link externo para o chat.
-- **Resumo extremo:** escolhemos Adult + q04, definimos três variáveis isoladas, estabelecemos o protocolo reprodutível e registramos a futura análise de trade-offs.
-- **Continuidade:** uma nova conversa iniciará exclusivamente a preparação e a execução da Variável 1 — formulação da ativação oculta.
+- `S-BETA-0.5`;
+- `S-BETA-1`;
+- `S-BETA-2`;
+- `S-BETA-5`.
+
+### Variável 3 — profundidade sem ativação
+
+- `L1-DIRECT`: `Linear(108,2)` — 218 parâmetros;
+- `L2-IDENTITY`: `Linear(108,64) -> Linear(64,2)` — 7.106 parâmetros;
+- `L3-IDENTITY`: `Linear(108,64) -> Linear(64,64) -> Linear(64,2)` — 11.266 parâmetros.
+
+V3 seguirá sem consulta ao professor. Manter registrado o risco de ela ser
+considerada uma variável arquitetural, e não uma terceira variável de q01.
+
+## Protocolo fixo
+
+- Full-batch, Adam, `lr=1e-2`, 100 épocas e validação de 20%.
+- Um único split gerado com seed 0.
+- Seeds de modelo: `0`, `1` e `2`.
+- Métrica principal: média da acurácia de validação na época 100.
+- Diferença relevante: 0,5 ponto percentual, com mesmo sinal em pelo menos duas
+  das três seeds.
+- Teste oficial somente no final, para todas as configurações válidas.
+- Salvar configuração, log, métricas, FLOPs e checkpoint de cada run.
+- Preservar o loader atual e registrar sua limitação de pré-processamento.
+- Custos por elemento: Identity 0, ReLU 1, Sigmoid 4, Swish 5, Softplus 3 e
+  Softplus-beta 5 FLOPs instrumentados.
+- Retorno por FLOP:
+  `(acurácia_val - acurácia_majoritária_val) / GFLOPs_totais`.
+
+Planejamento padrão: 11 configurações, três seeds e 33 treinamentos, mais uma
+reexecução de `F-RELU` para conferir determinismo.
+
+## Execução
+
+### 1. Preparar os registros — concluído em 21/07/2026
+
+- [x] Criar `experiments/` e `PROJECT_STATUS.md` novos.
+- [x] Registrar configurações e hipóteses antes dos resultados.
+- [x] Registrar branch e commit base; diff e hashes serão congelados antes das
+  runs completas.
+
+### 2. Implementar a q01 básica
+
+- Implementar Sigmoid, Swish e Softplus estáveis com backward correto.
+- Instrumentar os FLOPs confirmados.
+- Criar testes de valor, extremos e gradient check.
+- Incluir Matplotlib em `requirements.txt` e gerar o gráfico da q01.
+- Testar a cross-entropy com logits extremos; se loss ou gradiente não for
+  finito, estabilizá-la antes da baseline.
+
+Validar:
+
+```bash
+python -m exercises.q01_activations
+pytest -q --ignore=test/test_model.py
+```
+
+### 3. Executar a Variável 1
+
+- Tornar a mesma `AdultMLP` configurável para as quatro ativações.
+- Separar a criação do split da seed de inicialização do modelo.
+- Impedir consulta automática ao teste.
+- Fazer smoke test de duas épocas.
+- Executar e reproduzir `F-RELU` primeiro.
+- Executar as quatro configurações com seeds `0`, `1` e `2`.
+- Salvar resultados e checkpoints.
+- Analisar as hipóteses e encerrar V1 antes de continuar.
+
+### 4. Executar a Variável 2
+
+Somente depois de fechar V1:
+
+- implementar Softplus-beta;
+- testar valores, derivadas e FLOPs;
+- fazer smoke test;
+- executar os quatro valores de `beta` nas três seeds;
+- analisar e encerrar V2.
+
+### 5. Executar a Variável 3
+
+Somente depois de fechar V2:
+
+- implementar as três arquiteturas sem ativação;
+- verificar contagem de parâmetros e equivalência com uma função afim única;
+- fazer smoke test;
+- executar as três profundidades nas três seeds;
+- comparar também `L2-IDENTITY` com `F-RELU`;
+- analisar e encerrar V3.
+
+### 6. Finalizar a análise
+
+- Avaliar no teste todos os checkpoints válidos, sem mudar decisões.
+- Consolidar `results.csv` e gerar os gráficos.
+- Comparar acurácia, parâmetros e FLOPs.
+- Identificar configurações dominadas e fronteira de Pareto.
+- Responder às quatro perguntas obrigatórias sobre retorno por FLOP, retornos
+  decrescentes, variável de maior custo e escolha sob orçamento fixo.
+
+### 7. Preparar a entrega
+
+- Atualizar `README.md` e `requirements.txt`.
+- Finalizar registros de IA, dificuldades e reprodução.
+- Ligar os 12 requisitos do vídeo às evidências do repositório.
+- Preparar vídeo de até 20 minutos, link do GitHub e envio no Classroom.
+
+## Próximo passo
+
+Os registros de V1 estão prontos. O próximo passo, após autorização, é
+implementar a q01 básica. Não implementar V2 ou V3 antecipadamente.

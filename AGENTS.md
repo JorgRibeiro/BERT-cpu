@@ -1,37 +1,91 @@
-# Orientações para agentes — Adult + ativações aprendíveis
+# Orientações para agentes — Adult + q01 (funções de ativação)
 
-## Função e escopo
+## Estado deste contrato
 
-Este arquivo é o contrato de trabalho para o estudo dirigido de Reconhecimento
-de Padrões 2026.1. O escopo confirmado é investigar ativações aprendíveis
-(`q04`) na classificação binária do conjunto Adult.
+Este arquivo é o contrato de trabalho do estudo dirigido de Reconhecimento de
+Padrões 2026.1. Ele foi reiniciado em 21/07/2026 após a decisão do estudante de
+substituir a q04 pela **q01 — activations**.
 
-O objetivo é verificar se uma combinação aprendida de ReLU, GELU e SiLU melhora
-a acurácia e se o resultado compensa o custo em FLOPs. O estudante deve conseguir
-explicar a formulação, a implementação, o protocolo e os limites das conclusões.
-Não desvie para outras tarefas, questões ou para a implementação do BERT.
+O escopo anterior sobre ativações aprendíveis foi abandonado antes de qualquer
+implementação ou treinamento experimental. Não reutilize suas variáveis,
+hipóteses, IDs ou conclusões. A pasta `experiments/` foi esvaziada e
+`PROJECT_STATUS.md` foi removido pelo estudante por estarem obsoletos. Artefatos
+novos foram inaugurados em 21/07/2026 para Adult + q01; não os confunda com os
+arquivos descartados.
+
+O contrato está com o **protocolo pré-experimental confirmado**. Em 21/07/2026,
+o estudante confirmou as três variáveis, sua ordem, hipóteses, controles,
+métricas, repetições e regras de análise descritas abaixo. A única recomendação
+não adotada foi consultar o professor sobre o enquadramento acadêmico de V3; a
+variável permanece selecionada, com esse risco documentado. Ainda não houve
+implementação de q01, treino experimental ou resultado.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
 respectivamente.
 
-## Decisões confirmadas
+## Função e escopo confirmado
 
-- Tarefa: classificação Adult em `exercises/task_binary_classification.py`.
-- Questão: q04 em `exercises/q04_learnable_activations.py`.
-- Motivo da tarefa: problema tangível e testável, com acurácia e FLOPs
-  diretamente comparáveis.
-- Motivo da questão: aproveita o conhecimento prévio sobre ativações e o amplia
-  para parâmetros aprendidos durante o treinamento.
-- Contexto teórico: a referência apresenta a ideia em modelos de linguagem; o
-  estudo avaliará sua aplicação em classificação tabular. Não alegue ineditismo
-  nem transfira conclusões do artigo sem evidência no Adult.
-- Variáveis confirmadas, nesta ordem: formulação da ativação oculta,
-  parametrização/restrição dos coeficientes e largura da camada oculta.
-- As três variáveis serão estudadas separadamente; conclua implementação,
-  validação, execução e análise de uma antes de iniciar a seguinte.
+- Tarefa: classificação binária do conjunto Adult em
+  `exercises/task_binary_classification.py`.
+- Questão: q01 em `exercises/q01_activations.py`.
+- Questão central do enunciado: uma função de ativação pode ser responsável pelo
+  melhor desempenho global do sistema em determinada tarefa?
+- Objetivo experimental: comparar formulações relacionadas a funções de
+  ativação quanto à acurácia e aos FLOPs instrumentados na classificação Adult.
+- Baseline experimental confirmada: a MLP atual
+  `Linear(108,64) -> ReLU -> Linear(64,2)`, identificada como `F-RELU`.
+- Métricas: acurácia de treino, validação e teste. A métrica primária é a média
+  da acurácia de validação na época 100 entre seeds; o checkpoint principal é o
+  da época 100, e o teste só será consultado na fase final confirmada.
+- Quantidade confirmada: três variáveis, investigadas nesta ordem e de forma
+  separada: família da ativação, curvatura da Softplus e profundidade linear sem
+  ativação.
 
-Na baseline:
+Não implemente BERT, q02, q03, q04 ou uma tarefa diferente. Não recupere os
+artefatos experimentais descartados. Não alegue que q01 já foi implementada ou
+validada.
+
+## Motivações registradas
+
+- Adult permanece por ser uma tarefa concreta, pequena o suficiente para CPU e
+  diretamente comparável por acurácia e FLOPs.
+- q01 substitui q04 porque trabalha conceitos fundamentais e explicáveis:
+  valor da ativação, derivada local, propagação de gradiente e efeito da
+  não linearidade sobre a representação oculta.
+- A investigação deve conectar equação, implementação do `forward`, regra de
+  `backward`, dinâmica de treinamento e desempenho medido. Não basta trocar o
+  nome da função no código e apresentar a acurácia final.
+
+## Estado técnico observado em 21/07/2026
+
+### q01
+
+`ExTensor` deve acrescentar três ativações ao engine:
+
+```text
+sigmoid(x)  = 1 / (1 + exp(-x))
+swish(x)    = x * sigmoid(x)
+softplus(x) = log(1 + exp(x))
+```
+
+Os três métodos ainda lançam `NotImplementedError`:
+
+- `ExTensor.sigmoid`;
+- `ExTensor.swish`;
+- `ExTensor.softplus`.
+
+O comando `python -m exercises.q01_activations` termina com código 0, mas apenas
+informa que as ativações precisam ser implementadas. Isso não é evidência de
+sucesso. O comando `python -m exercises.check`, citado no docstring da q01, não
+existe no repositório.
+
+Não há teste automatizado específico para q01. A visualização usa Matplotlib,
+que está instalado no ambiente auditado, mas não consta em `requirements.txt`.
+
+### Classificação Adult
+
+A implementação atual usa:
 
 ```text
 z = fc1(x)
@@ -39,326 +93,417 @@ h = ReLU(z)
 logits = fc2(h)
 ```
 
-Na q04, a ReLU é substituída por uma mistura global aprendível:
+Configuração observada:
 
-```text
-h = alpha_relu * ReLU(z) + alpha_gelu * GELU(z) + alpha_silu * SiLU(z)
-```
-
-ou por sua forma normalizada:
-
-```text
-pi = softmax([beta_relu, beta_gelu, beta_silu])
-h = pi_relu * ReLU(z) + pi_gelu * GELU(z) + pi_silu * SiLU(z)
-```
-
-Os coeficientes são globais e compartilhados entre amostras e unidades. Esta é
-uma Learnable Activation independente da entrada, não uma mistura dinâmica
-condicionada por amostra.
-
-## Decisões pendentes
-
-- Hipóteses registradas antes das execuções.
-- Configurações experimentais e baseline executada de referência.
-- Métrica primária para selecionar configurações.
-- Repetições e sementes adicionais; `cpu.set_seed(0)` é obrigatório.
-- Definição operacional de retorno por FLOP.
-- Orçamento computacional de referência.
-
-Não feche uma dessas decisões sem confirmação do estudante quando ela mudar o
-rumo da investigação.
-
-## Plano pré-experimental das variáveis
-
-As seções abaixo registram ideias e hipóteses iniciais. **Nada foi implementado,
-executado ou validado.** Não apresente efeitos esperados como resultados e não
-combine níveis de variáveis diferentes durante estas três etapas.
-
-### Controles comuns
-
-Salvo quando for a própria variável investigada, preserve:
-
-- Adult, pré-processamento e os mesmos índices de treino e validação;
-- `cpu.set_seed(0)` antes de cada execução independente;
+- 108 entradas, `hidden=64` e duas saídas;
+- 7.106 parâmetros escalares;
 - full-batch, Adam, `lr=1e-2`, 100 épocas e validação de 20%;
-- 108 entradas, duas saídas, loss e procedimento de avaliação;
-- mesma inicialização das camadas lineares quando as formas forem iguais;
-- mesma janela de medição dos FLOPs e mesmo formato de logs;
-- seleção por validação e uso do teste apenas na avaliação final.
+- tensores no formato `(features, amostras)`;
+- loss de treino antes do `Adam.step` e loss de validação depois do passo;
+- métricas e FLOPs impressos no terminal, sem retorno estruturado;
+- consulta incondicional ao teste no final do `main()`.
 
-Registre um hash ou identificador do split. Não acrescente forwards de
-diagnóstico dentro da região de FLOPs apenas em algumas configurações: calcule
-estatísticas fora da janela medida ou aplique o mesmo diagnóstico a todas. Para
-cada execução, registre ID, commit, seed, split, configuração, parâmetros,
-loss, acurácias, FLOPs e observações numéricas.
+A cross-entropy atual compõe `softmax` e `log`. Em logits artificiais extremos,
+uma probabilidade pode arredondar para zero e produzir loss/gradiente não finito.
+Isso ainda não foi observado como resultado de treino Adult. Antes das execuções,
+reproduza o teste de estresse confirmado no protocolo. Se loss ou gradiente não
+for finito, estabilize a loss de modo idêntico para todas as configurações antes
+da baseline; não a altere no meio de uma varredura.
 
-### Variável 1 — formulação da ativação oculta
+O split atual, com seed 0, contém 26.049 amostras de treino e 6.512 de
+validação. O encoder é ajustado no arquivo oficial de treino inteiro antes do
+hold-out; portanto usa features da futura validação, sem seus rótulos. Por
+decisão confirmada, preserve esse comportamento em todas as configurações e
+registre-o como limitação; não o corrija silenciosamente durante uma varredura.
 
-Manter `hidden=64` e alterar somente como `z = fc1(x)` produz `h`:
+### Testes e FLOPs
 
-| ID | Configuração | Formulação |
+O comando abaixo passa atualmente:
+
+```text
+pytest -q --ignore=test/test_model.py
+62 passed
+```
+
+Quatro placeholders do Transformer continuam fora do escopo. Não afirme que a
+suíte completa passa.
+
+O contador de FLOPs:
+
+- contabiliza os forwards instrumentados;
+- contabiliza backward apenas das multiplicações matriciais;
+- não contabiliza backward elementwise;
+- não contabiliza operações NumPy do Adam;
+- trata uma operação elementwise não especializada como um FLOP por elemento.
+
+Assim, uma ativação q01 implementada como uma única primitiva receberia uma
+contagem genérica inadequada para comparar sigmoid, swish e softplus. Antes dos
+experimentos, defina e teste uma convenção uniforme de FLOPs de forward para as
+novas primitivas. Relate sempre “FLOPs instrumentados”, nunca tempo, energia,
+memória ou custo completo.
+
+## Fundamentos que o estudante deve conseguir explicar
+
+Seja `g = dL/dy` o gradiente que chega à ativação.
+
+### Sigmoid
+
+```text
+s(x)  = 1 / (1 + exp(-x))
+s'(x) = s(x) * (1 - s(x))
+dL/dx = g * s(x) * (1 - s(x))
+```
+
+A saída fica entre 0 e 1. Para entradas de grande magnitude, a derivada tende a
+zero e pode produzir saturação. O forward deve ser numericamente estável para
+valores positivos e negativos extremos.
+
+### Swish / SiLU
+
+```text
+w(x)  = x * s(x)
+w'(x) = s(x) + x * s(x) * (1 - s(x))
+dL/dx = g * w'(x)
+```
+
+É suave, não limitada no lado positivo e permite pequenas saídas negativas. Sua
+derivada pode preservar gradiente onde a ReLU zeraria a unidade.
+
+### Softplus
+
+```text
+p(x)  = log(1 + exp(x))
+p'(x) = s(x)
+dL/dx = g * s(x)
+```
+
+É uma aproximação suave da ReLU, sempre positiva. A forma ingênua pode sofrer
+overflow; uma implementação estável pode usar uma formulação NumPy equivalente,
+como `logaddexp(0, x)`, mantendo a derivada documentada.
+
+### Comparação com ReLU
+
+```text
+r(x)  = max(0, x)
+r'(x) = 0 para x <= 0; 1 para x > 0
+```
+
+ReLU é barata e esparsa, mas zera valor e gradiente no semieixo negativo. As
+ativações suaves fazem mais operações e alteram tanto a escala das representações
+quanto o fluxo de gradientes. Esses mecanismos fundamentam hipóteses; seus
+efeitos no Adult só podem ser chamados de resultados depois das medições.
+
+## Requisitos para implementar q01
+
+- manter `ExTensor` compatível com o `Tensor` do engine;
+- construir cada saída com `self` como pai e um rótulo `_op` inequívoco;
+- preservar `requires_grad`;
+- acumular gradientes com `+=`, nunca sobrescrevê-los;
+- não desprender o grafo usando `.data` para produzir saídas intermediárias;
+- usar `.data` somente para calcular o valor NumPy da primitiva e sua derivada
+  local dentro do fechamento de backward;
+- garantir estabilidade numérica em entradas extremas;
+- permitir aplicar os métodos de `ExTensor` a um `Tensor` produzido por
+  `nn.Linear`, conforme o uso não vinculado já demonstrado na própria q01;
+- chamar, por exemplo, `ExTensor.swish(z)` sobre o `Tensor` conectado ao grafo;
+  não criar `ExTensor(z)`, pois essa reconstrução copiaria os dados e perderia os
+  pais que ligam `z` à primeira camada linear;
+- acrescentar contagem de FLOPs coerente e documentada para as três primitivas;
+- criar gradient checks por diferenças finitas para valor, entrada e cadeias
+  com operações anteriores/posteriores;
+- testar dtype, forma, `requires_grad`, acumulação e finitude.
+
+Não substitua a implementação pedagógica por uma biblioteca de deep learning.
+Preserve NumPy/CPU.
+
+## Variáveis confirmadas em 21/07/2026
+
+O estudante escolheu as três variáveis abaixo, confirmou sua ordem e aprovou as
+comparações e hipóteses em 21/07/2026. Elas são decisões pré-experimentais, não
+resultados. Use `delta=0,5` ponto percentual e a regra confirmada neste contrato
+para avaliá-las somente depois das medições.
+
+### Variável 1 — família da ativação oculta
+
+Manter a arquitetura `108 -> 64 -> 2` e alterar somente a transformação entre
+as duas camadas lineares:
+
+| ID | Configuração | Formulação de `h` |
 |---|---|---|
-| `A0` | ReLU fixa | `h = ReLU(z)` |
-| `A1` | GELU fixa | `h = GELU(z)` |
-| `A2` | SiLU fixa | `h = SiLU(z)` |
-| `A3` | mistura uniforme fixa | `h = (ReLU(z) + GELU(z) + SiLU(z)) / 3` |
-| `A4` | mistura normalizada aprendível | `pi = softmax(beta)` e `h = sum(pi_k * phi_k(z))`, com `beta=(0,0,0)` |
+| `F-RELU` | ReLU, referência | `max(0, z)` |
+| `F-SIGMOID` | Sigmoid | `1 / (1 + exp(-z))` |
+| `F-SWISH` | Swish / SiLU | `z * sigmoid(z)` |
+| `F-SOFTPLUS` | Softplus padrão | `log(1 + exp(z))` |
 
-Objetivo: distinguir três efeitos — escolher outra ativação fixa, combinar três
-ativações e aprender os pesos da combinação. `A0` é a baseline; `A1` e `A2` são
-controles individuais. `A3` e `A4` começam com a mesma função e pesos efetivos
-`(1/3, 1/3, 1/3)`, tornando `A3 x A4` a comparação central para o efeito do
-aprendizado.
+Todas usam `z = fc1(x)`, `hidden=64` e 7.106 parâmetros escalares. O objetivo é
+comparar diretamente ativações com esparsidade, saturação e suavidade distintas.
 
-Hipótese inicial: `A4` poderá igualar ou superar a melhor ativação fixa e `A3`
-em acurácia de validação. `A3` e `A4` deverão ter custos semelhantes, mas não
-idênticos; ambos calculam três ativações, enquanto `A4` também calcula o softmax
-e atualiza três parâmetros.
+Hipóteses confirmadas: pelo menos uma função suave superará a ReLU por `delta`,
+possivelmente por preservar gradientes no semieixo negativo; `F-SIGMOID` ficará
+abaixo de `F-RELU` por `delta`, devido ao risco de saturação e à representação
+não centrada; a ReLU terá o menor custo elementwise instrumentado.
 
-Implementação futura exigida:
+Além de loss, acurácia e FLOPs, registre fora da janela medida estatísticas
+comparáveis de `z`, de `h` e da derivada local: média, desvio, percentis, fração
+de saídas próximas de zero e um indicador de saturação apropriado à função.
 
-- tornar a ativação da mesma `AdultMLP` configurável, sem duplicar a task;
-- preservar ReLU como comportamento padrão;
-- implementar a mistura fixa com constantes, sem `Parameter`;
-- integrar `NormalizedLearnableActivation` como submódulo e confirmar que os
-  três `beta` aparecem em `model.parameters()`;
-- testar numericamente que `A3` e `A4` produzem a mesma saída inicial;
-- registrar, em `A4`, `beta`, pesos efetivos `pi` e contribuição média absoluta
-  de cada termo `pi_k * phi_k(z)`.
+### Variável 2 — curvatura da Softplus
 
-Cuidados: `A0`–`A3` têm 7.106 parâmetros e `A4` tem 7.109. GELU e SiLU podem
-ser muito correlacionadas no domínio visitado, deixando os coeficientes pouco
-identificáveis. Um `pi` maior não prova maior importância sem considerar a
-escala de `phi_k(z)`.
+Fixar `hidden=64` e usar a família:
 
-### Variável 2 — parametrização e restrição dos coeficientes
+```text
+softplus_beta(z) = log(1 + exp(beta * z)) / beta, beta > 0
+```
 
-Manter `hidden=64`, ReLU, GELU e SiLU e comparar duas formas aprendíveis que
-representam a mesma função inicial:
+com implementação numericamente estável equivalente a
+`logaddexp(0, beta*z) / beta`.
 
-| ID | Configuração | Inicialização efetiva |
-|---|---|---|
-| `C0` | normalizada por softmax | `beta=(0,0,0)`, logo `pi=(1/3,1/3,1/3)` |
-| `C1` | livre, sem normalização | `alpha=(1/3,1/3,1/3)` |
+| ID | `beta` | Interpretação |
+|---|---:|---|
+| `S-BETA-0.5` | 0,5 | transição mais suave |
+| `S-BETA-1` | 1 | Softplus padrão e referência |
+| `S-BETA-2` | 2 | aproximação mais marcada da ReLU |
+| `S-BETA-5` | 5 | aproximação ainda mais próxima da ReLU |
 
-Objetivo: comparar a formulação normalizada, com pesos positivos somando 1, à
-formulação livre, que permite pesos negativos e escala global variável. A
-comparação envolve tanto a restrição quanto a geometria de parametrização do
-softmax; não atribua o efeito somente à restrição.
+`beta` é uma constante fixa da configuração, não um parâmetro aprendível. A
+derivada local é `sigmoid(beta*z)`. O objetivo é verificar se o grau de suavidade
+altera otimização e generalização sem mudar a arquitetura ou a quantidade de
+parâmetros.
 
-Hipótese inicial: `C0` poderá preservar melhor a escala e produzir pesos mais
-interpretáveis; `C1` terá maior flexibilidade e poderá reduzir mais a loss de
-treino, mas também poderá gerar coeficientes negativos, crescimento de escala
-ou pior generalização. Os FLOPs devem ser próximos, não presumidos idênticos.
+Hipótese confirmada: o melhor resultado médio entre `beta=1` e `beta=2`
+superará por `delta` o melhor resultado médio entre os extremos `beta=0,5` e
+`beta=5`. Escolha o vencedor de cada grupo pela média das três seeds e compare
+depois os IDs vencedores também pelo sinal pareado nas seeds. Todos os níveis
+executam a mesma forma algébrica e deverão ter o mesmo custo pela convenção
+analítica escolhida. A aproximação à ReLU será tratada como verificação
+mecânica, não como resultado incerto. Observe que `beta` também muda
+`softplus_beta(0) = log(2)/beta`, portanto curvatura, deslocamento e escala não
+ficam completamente separados.
 
-Implementação futura exigida:
+`S-BETA-1` coincide matematicamente com `F-SOFTPLUS`. Para reutilizar a execução,
+`F-SOFTPLUS` deve chamar literalmente o mesmo caminho Softplus-beta com
+`beta=1`, inclusive multiplicação, divisão e contagem. Além disso, código,
+commit/estado, seed, split, hiperparâmetros, instrumentação e diagnósticos devem
+ser idênticos. Como Softplus-beta só deve ser implementada depois de fechar V1,
+o padrão é executar e contar as duas runs separadamente; qualquer reutilização
+exige prova de identidade completa.
 
-- permitir escolher as duas classes da q04 na mesma MLP;
-- preservar o default pedagógico `alpha=(1,1,1)` da classe existente e expor
-  uma inicialização configurável de `1/3` para o experimento Adult;
-- confirmar que `C0` e `C1` produzem a mesma saída inicial para a mesma entrada;
-- confirmar que os três coeficientes são atualizados pelo Adam;
-- registrar `beta` e `pi` em `C0`; em `C1`, registrar `alpha`, sua soma, sinais,
-  norma e a escala da saída;
-- registrar as contribuições efetivas `peso_k * phi_k(z)`, não somente os
-  coeficientes finais.
+### Variável 3 — profundidade linear sem ativação
 
-`C0` coincide com `A4`. Uma execução só pode ser reaproveitada se commit, split,
-seed, hiperparâmetros, instrumentação e código forem idênticos. Existe a
-possibilidade de o professor considerar esta variável um desdobramento da
-primeira; sinalize essa ambiguidade antes de associá-la à bonificação.
+Não aplicar função de ativação entre as camadas. O fator declarado é a
+profundidade/fatorização linear; número de parâmetros, sobreparametrização e
+geometria de otimização também mudam e não podem ser separados desse fator:
 
-### Variável 3 — largura da camada oculta
+| ID | Arquitetura | Parâmetros escalares |
+|---|---|---:|
+| `L1-DIRECT` | `Linear(108,2)` | 218 |
+| `L2-IDENTITY` | `Linear(108,64) -> Linear(64,2)` | 7.106 |
+| `L3-IDENTITY` | `Linear(108,64) -> Linear(64,64) -> Linear(64,2)` | 11.266 |
 
-Fixar antecipadamente `C0` — mistura normalizada, `beta=(0,0,0)` — e alterar
-somente `hidden`:
+O estudante confirmou 64 unidades nas duas camadas intermediárias de
+`L3-IDENTITY`. A contagem de 11.266 parâmetros vale para essa forma.
 
-| ID | `hidden` | Parâmetros estimados |
-|---|---:|---:|
-| `H32` | 32 | 3.557 |
-| `H64` | 64 | 7.109 |
-| `H128` | 128 | 14.213 |
+“Sem ativação” significa passar `z` diretamente à próxima camada; não crie uma
+operação `Identity` artificial nem atribua FLOPs a uma cópia inexistente. A
+identidade é `g(z)=z`, mas a rede completa não é necessariamente `f(x)=x`.
+Compondo camadas afins, cada configuração continua equivalente a uma única
+função afim:
 
-Para 108 entradas, duas saídas e três `beta`, use `P(h) = 111h + 5`; recalcule
-se a arquitetura mudar. `H64` é a referência. Não escolha a ativação desta
-etapa retrospectivamente a partir do melhor resultado anterior.
+```text
+W_n(...W_2(W_1*x + b_1) + b_2...) + b_n = W*x + b
+```
 
-`H64` coincide com `C0` apenas quando todos os metadados e o código são
-idênticos; nesse caso, a execução pode ser reutilizada sem duplicação.
+Na arquitetura confirmada, as larguras intermediárias são pelo menos dois. Assim,
+as três configurações têm a mesma classe de funções afins para duas saídas,
+embora tenham parametrizações, inicializações e trajetórias de otimização
+diferentes.
 
-Objetivo: quantificar capacidade versus custo e procurar retornos decrescentes.
-Hipótese inicial: `H32` será mais econômico e poderá perder capacidade; `H128`
-elevará parâmetros e FLOPs aproximadamente em proporção à largura, mas poderá
-ter ganho marginal menor que `H32 -> H64` e maior diferença entre treino e
-validação.
+Hipóteses confirmadas: nem `L2-IDENTITY` nem `L3-IDENTITY` melhorará
+`L1-DIRECT` por `delta`; parâmetros e FLOPs crescerão na ordem da profundidade;
+o retorno seguirá `R(L1-DIRECT) > R(L2-IDENTITY) > R(L3-IDENTITY)`; e
+`F-RELU` superará `L2-IDENTITY` por `delta`. Um resultado diferente pode
+decorrer da parametrização/otimização implícita, não de aumento da classe
+funcional. O contraste com `F-RELU` só é válido com os demais controles
+idênticos.
 
-Implementação futura exigida:
+Modelos com formas diferentes não podem compartilhar todos os pesos iniciais.
+A seed garante repetibilidade, não equivalência tensor a tensor. Não conclua que
+mais camadas “não servem” fora das redes lineares e deste protocolo Adult.
+O professor pode interpretar profundidade como uma variável arquitetural
+genérica, não como terceira variável de q01. O estudante decidiu prosseguir sem
+consultar o professor sobre esse enquadramento. Preserve o risco e nunca afirme
+que V3 foi aceita pelo professor ou que sua bonificação está garantida.
 
-- expor `hidden` como configuração da mesma MLP;
-- preservar a mistura normalizada e todos os outros controles;
-- testar dimensões, contagem de parâmetros e saída `(2, batch)` em cada largura;
-- registrar loss/acurácia de treino e validação, parâmetros, FLOPs por época e
-  total, além dos ganhos marginais entre larguras;
-- analisar os pares brutos `(FLOPs, acurácia)` e as curvas por época.
+## Protocolo pré-experimental confirmado em 21/07/2026
 
-Modelos com larguras diferentes não podem iniciar com pesos idênticos; a seed
-garante repetibilidade, não equivalência tensor a tensor. Manter 100 épocas
-iguala o número de passos, não o orçamento em FLOPs. Não altere épocas para
-compensar isso dentro desta variável.
+- `L3-IDENTITY`: larguras intermediárias 64 e 64;
+- treinamento: full-batch, Adam, `lr=1e-2`, 100 épocas e validação de 20%;
+- split: gerar/materializar uma vez com seed 0, preservar índices e hash;
+- inicializações: seeds de modelo `0`, `1` e `2`, aplicadas imediatamente antes
+  de construir o modelo sem regenerar o split;
+- métrica primária: média da acurácia de validação na época 100;
+- checkpoint principal: época 100; melhor época apenas como análise secundária;
+- margem relevante: `delta=0,5` ponto percentual;
+- hipótese direcional sustentada: diferença média de pelo menos `delta` e mesmo
+  sinal em pelo menos duas das três seeds; refutada quando o efeito inverso
+  satisfizer a mesma regra; demais casos inconclusivos;
+- desempate: menor FLOP total e, depois, menor quantidade de parâmetros;
+- run inválida: somente erro, NaN/Inf, split/hash incorreto, instrumentação
+  errada ou violação do protocolo; desempenho ruim mas finito continua válido;
+- teste oficial: somente após congelar protocolo e seleção por validação; nessa
+  fase, reportar todas as configurações válidas sem revisar decisões;
+- pré-processamento: preservar o loader atual e documentar como limitação o
+  encoder ajustado antes do hold-out;
+- cross-entropy: reproduzir formalmente o teste de estresse e aplicar uma forma
+  estável de maneira uniforme antes da baseline se a falha for confirmada;
+- visualização: incluir os gráficos da q01 e registrar Matplotlib em
+  `requirements.txt` quando a implementação começar;
+- checkpoints: salvar pesos finais, configuração e hash de cada run;
+- proveniência: o estudante autorizou o commit documental do Passo 0. Commits
+  futuros continuam exigindo autorização explícita, assim como qualquer push;
+- enquadramento de V3: a consulta ao professor não será realizada por decisão do
+  estudante; o risco acadêmico permanece documentado.
 
-### Avaliação exploratória posterior
+Detalhes operacionais:
 
-Somente depois de concluir e preservar as três análises isoladas, poderá ser
-avaliada uma configuração que reúna níveis selecionados das variáveis. Essa
-execução não substitui os estudos unifatoriais, não conta como nova variável e
-não permite atribuir causalmente o resultado a um único fator. Se realizada,
-selecione os níveis pela validação, rotule a configuração como exploratória e
-consulte o teste apenas na avaliação final. Por decisão do estudante, esta etapa
-não deve constar no `Passo-a-passo.md`.
+- reprodução de `F-RELU`: mesmos split/pesos iniciais, FLOPs exatos e
+  pesos/métricas finais iguais com `rtol=1e-12`, `atol=1e-12` no mesmo ambiente;
+- diagnósticos: antes do treino e após épocas `1`, `25`, `50`, `75` e `100`;
+- próximo de zero: `abs(h) <= 1e-6`; para ReLU, registre também zero exato;
+- saturação da Sigmoid: saída `<=0,05` ou `>=0,95`;
+- estresse da cross-entropy: logits `(+1000,-1000)` com alvo da classe de menor
+  logit e o caso simétrico; qualquer loss ou gradiente NaN/Inf aciona a
+  estabilização uniforme antes da baseline;
+- smoke: duas épocas sobre o split completo e fixo, sem uso científico.
 
-## Fontes de verdade
+### Convenção confirmada de FLOPs
 
-Use, nesta ordem:
+Custos do forward por elemento:
 
-1. orientação mais recente do estudante ou professor;
-2. `Passo-a-passo.md`, para decisões e trajetória;
-3. `Estudo_Dirigido_RP___2026_1.pdf`, para requisitos acadêmicos;
-4. código e testes, para comportamento técnico;
-5. este arquivo, para o protocolo acordado;
-6. `README.md`, que será atualizado como entregável.
+| Operação | FLOPs instrumentados |
+|---|---:|
+| identidade/ausência de ativação | 0 |
+| ReLU | 1 |
+| Sigmoid estável | 4 |
+| Swish | 5 |
+| Softplus padrão da q01 | 3 |
+| Softplus-beta, inclusive `beta=1` | 5 |
 
-Exponha conflitos e diferencie requisito do professor, decisão do estudante e
-recomendação do agente.
+Cada operação escalar da formulação analítica vale uma unidade, inclusive
+`exp` e `log`; isso não representa seu custo físico real. Comparações e ramos de
+estabilidade não recebem peso adicional. Matmuls preservam
+`2 * elementos_da_saida * dimensão_compartilhada`. Backward elementwise e Adam
+permanecem fora do contador.
 
-## Memória contínua
+Em cada época, reinicie o contador antes do forward de treino e leia-o após a
+loss de validação. A janela inclui forward/loss de treino, backward
+instrumentado, passo do Adam sem custo registrado e forward/loss de validação.
+Exclua diagnósticos, acurácia e teste. Meça inferência por amostra separadamente
+com apenas um forward no conjunto de validação, dividindo pelo número de
+amostras.
 
-Mantenha um `PROJECT_STATUS.md` curto quando o trabalho experimental começar.
-Ao final de cada interação que alterar materialmente o projeto, registre:
+### Eficiência confirmada
 
-- objetivo e decisões atuais;
-- trabalho concluído e arquivos afetados;
-- comandos e evidências de validação;
-- riscos, pendências e próximo passo;
-- progresso dos entregáveis.
+- retorno por FLOP:
+  `(acurácia_val em p.p. - acurácia_majoritária_val em p.p.) / GFLOPs_totais`;
+- retorno marginal: `delta_acurácia / delta_GFLOPs` dentro de cada variável e
+  entre vizinhos da fronteira global, somente para `delta_GFLOPs > 0`;
+- custos iguais: não calcular retorno marginal; comparar diretamente acurácia;
+- orçamento fixo: FLOPs totais de `F-RELU` em 100 épocas;
+- retornos decrescentes: aplicar `delta=0,5` p.p. como limiar de ganho relevante;
+- preservar sempre pares brutos e a fronteira de Pareto.
 
-Não marque como concluído algo apenas proposto. Se informar percentual, mostre o
-critério, como `itens concluídos / total de itens`.
+## Controles comuns confirmados
 
-## Evidências obrigatórias para o vídeo — seção 4 do enunciado
+Salvo quando a própria variável selecionada alterar explicitamente um item,
+preserve:
 
-Os 12 pontos abaixo são requisitos explícitos da apresentação, não sugestões.
-Quando o trabalho experimental começar, mantenha
-`experiments/video_evidence.md` como um mapa vivo entre cada requisito e suas
-evidências no repositório. Atualize-o ao concluir cada mudança ou execução
-relevante; não deixe a reconstrução dessas informações apenas para o final.
+- Adult, arquivos brutos e loader atual; documente como limitação o encoder
+  ajustado antes do hold-out;
+- mesmos índices de treino e validação, gerados ou recarregados com seed 0 e
+  identificados por hash;
+- seed 0 obrigatória entre as seeds de modelo; para cada run, aplique a seed
+  aprovada imediatamente antes de construir o modelo, sem regenerar o split;
+- mesma inicialização das camadas lineares quando suas formas forem iguais;
+- full-batch, Adam, `lr=1e-2`, 100 épocas e validação de 20%;
+- 108 entradas, `hidden=64`, duas saídas e 7.106 parâmetros escalares;
+- cross-entropy na forma uniforme definida antes da baseline, procedimento de
+  avaliação e ordem dos dados;
+- janela de FLOPs e formato de logs;
+- durante desenvolvimento e seleção, uso apenas de treino e validação; consulte
+  o teste somente na fase final confirmada e para todas as configurações válidas;
+- ReLU como comportamento padrão da task fora de uma configuração explícita;
+- diagnósticos fora da janela de FLOPs ou idênticos em todas as configurações.
 
-O mapa de evidências deve preservar todos os itens:
+Cada execução futura deve registrar ID, tarefa, variável/nível, seed, repetição,
+commit/estado da árvore, comando, ambiente, hashes de dados/split/pesos iniciais,
+hiperparâmetros, parâmetros, losses, acurácias, FLOPs, checkpoint/hash e
+observações.
 
-1. **Uso de IA:** o que foi delegado à IA e como código, explicações e sugestões
-   foram verificados, corrigidos e validados pelo estudante.
-2. **Tarefa de aprendizado:** Adult, conjunto de dados, entradas, saídas,
-   objetivo do treinamento e métrica usada para avaliar o desempenho.
-3. **Baseline:** configuração de referência empregada e justificativa de sua
-   escolha.
-4. **Variáveis e controles:** variável modificada em cada experimento e
-   elementos mantidos constantes para garantir comparação controlada.
-5. **Formulação investigada:** descrição matemática ou computacional das
-   modificações e explicação de como elas alteram o processamento da rede.
-6. **Arquitetura e treinamento:** funcionamento do modelo e do processo de
-   treinamento, relacionando implementação e conceitos teóricos da disciplina.
-7. **Protocolo experimental:** quantidade de configurações, repetições, sementes
-   aleatórias e métricas de desempenho escolhidas.
-8. **Resultados completos:** resultados de cada configuração por meio de
-   tabelas, gráficos ou registros de treinamento.
-9. **Desempenho versus FLOPs:** relação entre a métrica de desempenho e os
-   FLOPs, melhor retorno computacional e possíveis retornos decrescentes.
-10. **Hipóteses versus resultados:** quais hipóteses foram sustentadas,
-    refutadas ou permaneceram inconclusivas.
-11. **Dificuldades:** erros, instabilidades, resultados inesperados e alterações
-    realizadas durante a implementação e o desenvolvimento.
-12. **Reprodução:** dependências, comandos, configurações e organização dos
-    arquivos necessários para reproduzir os experimentos.
+## Fluxo de trabalho obrigatório
 
-Para cada item, registre afirmações que poderão ser apresentadas, caminhos dos
-artefatos que as sustentam, IDs de execução ou commits pertinentes, limitações e
-uma explicação em linguagem que o estudante consiga defender. Preserve também
-erros e tentativas descartadas quando forem relevantes ao item 11. Diferencie
-sempre plano, resultado medido e interpretação.
+1. auditar q01, Adult e a instrumentação — concluído em 21/07/2026;
+2. apresentar seis candidatas e receber a escolha — concluído em 21/07/2026;
+3. registrar as três variáveis e reescrever `Passo-a-passo.md` — concluído em
+   21/07/2026;
+4. confirmar o Portão 0, exceto a recomendação de consulta sobre V3 — concluído
+   em 21/07/2026;
+5. inaugurar os novos artefatos experimentais e registrar hipóteses formais;
+6. implementar e validar Sigmoid, Swish e Softplus padrão;
+7. integrar e testar somente V1 na classificação Adult;
+8. fazer smoke de V1 e reproduzir `F-RELU` sem consultar o teste;
+9. executar e encerrar a análise da Variável 1;
+10. somente então implementar, testar, executar e encerrar V2;
+11. somente então implementar, testar, executar e encerrar V3;
+12. realizar a avaliação de teste na fase aprovada;
+13. realizar a análise conjunta de trade-offs;
+14. atualizar README, dependências, uso de IA, vídeo e reprodução.
 
-Antes da gravação, converta esse mapa em um roteiro de até 20 minutos que cubra
-os 12 itens. Não basta mostrar o código ou as métricas finais: a apresentação
-deve demonstrar compreensão da modificação, dos fundamentos teóricos, dos
-efeitos sobre o modelo e dos limites das conclusões. O agente pode estruturar e
-revisar o roteiro, mas não deve afirmar que o estudante compreendeu ou validou
-uma explicação sem confirmação dele.
+Não implemente as três variáveis simultaneamente. Uma implementação fundamental
+compartilhada da q01 pode ser concluída antes das varreduras, mas cada fator
+experimental deve permanecer isolado.
 
-## Protocolo obrigatório
+## Protocolo experimental mínimo
 
-- Reproduza a baseline antes das variantes e registre commit, ambiente,
-  dependências, comando, configuração, métricas e FLOPs.
-- Antes de executar, registre cada hipótese: variável e níveis, controles,
-  efeitos esperados em acurácia e FLOPs, justificativa e critério para
-  sustentá-la, refutá-la ou considerá-la inconclusiva.
-- Varie uma variável por vez e mantenha as três varreduras independentes.
-- Mantenha dataset, pré-processamento, split, ordem, épocas, otimizador, learning
-  rate e arquitetura constantes, salvo o fator declarado.
-- Reinicialize cada execução independente com `cpu.set_seed(0)` e assegure o
-  mesmo split e inicialização comparável.
-- Registre acurácia de treino, validação e teste. Por padrão, selecione pela
-  validação e reserve o teste para a avaliação final; qualquer alternativa deve
-  ser definida antes dos resultados.
-- Registre FLOPs por época e total, em valor bruto e GFLOP. O contador mede
-  operações instrumentadas, não tempo, energia ou memória.
-- Relate todas as configurações válidas, inclusive resultados negativos ou
-  inesperados.
-- Execute integralmente a análise obrigatória de trade-offs definida na seção
-  seguinte.
+- reproduza a baseline confirmada antes das variantes;
+- varie uma variável por vez;
+- registre hipóteses e critérios antes das execuções;
+- mantenha os controles comuns, salvo o fator declarado;
+- assegure split e inicialização comparáveis;
+- nas execuções de desenvolvimento, registre treino e validação; depois de
+  congelar a seleção e conforme a fase previamente definida, reporte também a
+  acurácia de teste no escopo confirmado;
+- nunca use o teste para escolher configuração ou alterar o protocolo;
+- registre FLOPs por época, total bruto e GFLOP;
+- preserve todas as configurações válidas, inclusive resultados negativos;
+- não misture runs de commits, instrumentações ou splits diferentes;
+- registre e explique falhas em vez de repeti-las silenciosamente.
 
-## Análise obrigatória de trade-offs — Passo 4 do enunciado
+## Análise obrigatória de trade-offs
 
-Depois de concluir as investigações das três variáveis, reúna todas as
-configurações válidas em uma tabela e em um gráfico de desempenho versus FLOPs.
-Preserve os pares brutos `(FLOPs, desempenho)`, defina a métrica de desempenho e
-a fórmula de “retorno por FLOP” antes de observar os resultados e não substitua
-FLOPs por tempo, energia ou memória.
+Depois das três varreduras, reúna todas as configurações válidas numa tabela e
+num gráfico de desempenho versus FLOPs. Preserve os pares brutos e responda, com
+base nas medições:
 
-Responda explicitamente, com base nos resultados medidos, a todas as perguntas:
+1. qual configuração apresenta o melhor retorno por FLOP;
+2. a partir de onde aparecem retornos decrescentes;
+3. qual variável altera muito os FLOPs e pouco o desempenho, e se existe o
+   comportamento contrário;
+4. qual configuração escolher sob um orçamento fixo em FLOPs.
 
-1. Qual configuração apresenta o melhor retorno por FLOP, isto é, o maior
-   desempenho em relação ao custo computacional?
-2. A partir de qual configuração começam a ocorrer retornos decrescentes, de
-   modo que o aumento do custo deixa de produzir ganhos relevantes?
-3. Qual variável provoca grande variação em FLOPs, mas pouca alteração no
-   desempenho? Existe alguma variável com comportamento contrário?
-4. Com um orçamento computacional fixo em FLOPs, qual configuração escolher?
-   Justifique a escolha com base nos resultados.
+Identifique configurações dominadas e a fronteira de Pareto quando os dados
+permitirem. Defina antes dos resultados a métrica, a fórmula de retorno, o
+orçamento e o que constitui ganho relevante. Se a evidência não sustentar uma
+resposta, classifique-a como inconclusiva.
 
-Além das respostas, identifique configurações dominadas e a fronteira de Pareto
-quando os dados permitirem. Declare o orçamento fixo e o critério operacional de
-“ganho relevante” antes de aplicá-los. Se as medições não sustentarem uma
-resposta, registre-a como inconclusiva em vez de completar a lacuna por hipótese.
-Esta seção é um requisito futuro: nenhuma resposta ou conclusão experimental foi
-produzida ainda.
+## Artefatos da nova jornada
 
-## Fluxo de trabalho
-
-1. definir as hipóteses formais, métrica primária e regra de repetição;
-2. reproduzir e registrar `A0`, a baseline;
-3. implementar, validar, executar e analisar `A0`–`A4`;
-4. implementar, validar, executar e analisar `C0`–`C1`;
-5. implementar, validar, executar e analisar `H32`–`H128`;
-6. executar a análise obrigatória de trade-offs e responder às quatro perguntas;
-7. gerar a análise geral e atualizar reprodução, IA e apresentação.
-
-Não implemente todas as variáveis simultaneamente. Feche os artefatos e a
-interpretação de cada etapa antes de iniciar a seguinte.
-
-## Artefatos experimentais
-
-Quando necessários, use uma estrutura simples e versionável:
+Não recrie os arquivos antigos. Depois da escolha das variáveis e do início
+material do trabalho experimental, inaugure artefatos novos:
 
 ```text
 experiments/
+  checkpoints/
   configs/
   logs/
   results.csv
@@ -367,72 +512,125 @@ experiments/
   ai_usage.md
   video_evidence.md
   plots/
+PROJECT_STATUS.md
 ```
 
-Cada execução deve registrar tarefa, variável/nível, seed, repetição,
-hiperparâmetros, commit, comando, status, acurácias, FLOPs e observações.
-Tabelas e gráficos devem ser regeneráveis a partir dos dados brutos.
+`PROJECT_STATUS.md` deve permanecer curto e registrar objetivo, decisões,
+trabalho concluído, arquivos afetados, comandos/evidências, riscos, pendências,
+próximo passo e progresso dos entregáveis. Não marque propostas como concluídas.
+Se informar percentual, mostre o critério usado.
 
-## Validação
+Tabelas e gráficos devem ser regeneráveis a partir dos dados brutos. Nunca
+edite manualmente um resultado para fazê-lo coincidir com a hipótese.
 
-Antes de considerar uma mudança pronta:
+## Evidências obrigatórias para o vídeo
 
-- explique a equação e sua tradução para `forward` e gradientes;
-- execute o gradient check da q04;
-- teste a integração com a MLP;
-- faça um smoke test antes do treinamento completo;
-- confirme que a baseline continua reproduzível;
-- atualize dependências e comandos realmente usados.
+Quando o trabalho experimental começar, mantenha
+`experiments/video_evidence.md` como mapa vivo dos 12 requisitos explícitos:
 
-Comandos relevantes:
+1. uso de IA e verificação pelo estudante;
+2. tarefa Adult, dados, entradas, saídas, objetivo e métrica;
+3. baseline e justificativa;
+4. variáveis e controles;
+5. formulações e efeito no processamento;
+6. arquitetura, treinamento e fundamentos;
+7. configurações, repetições, seeds e métricas;
+8. resultados completos;
+9. desempenho versus FLOPs;
+10. hipóteses versus resultados;
+11. dificuldades, erros e mudanças;
+12. reprodução.
+
+Para cada item, ligue afirmações apresentáveis a caminhos, runs/commits,
+limitações e uma explicação que o estudante consiga defender. Diferencie plano,
+resultado medido e interpretação. Antes da gravação, transforme o mapa num
+roteiro de até 20 minutos. Não afirme compreensão ou validação humana sem
+confirmação do estudante.
+
+## Validação mínima antes de qualquer treino completo
+
+- testes de valor contra NumPy em domínio regular e extremo;
+- gradient check por diferenças finitas de sigmoid, swish e softplus;
+- teste de acumulação de gradiente e `requires_grad=False`;
+- teste de estabilidade: nenhuma saída/derivada NaN ou Inf em casos definidos;
+- comparação visual opcional das funções e derivadas;
+- integração de cada ativação com `AdultMLP` e cross-entropy;
+- teste de estresse e finitude da cross-entropy sob logits extremos;
+- saída `(2, batch)` e contagem de parâmetros preservadas;
+- um passo de Adam com gradientes finitos;
+- teste da contagem de FLOPs por ativação;
+- smoke test curto antes da baseline de 100 épocas;
+- confirmação de que a baseline/default com ReLU continua reproduzível.
+
+Comandos atualmente válidos:
 
 ```bash
 pytest -q --ignore=test/test_model.py
-python -m exercises.q04_learnable_activations
+python -m exercises.q01_activations
 python -m exercises.task_binary_classification
 ```
 
-Estado observado em 20/07/2026: 62 testes passam; quatro placeholders do
-Transformer falham deliberadamente com `NotImplementedError`. Não afirme que a
-suíte completa passa nem amplie o escopo para corrigi-los.
+O último comando executa 100 épocas na forma atual; não o use como smoke test
+sem antes criar uma opção curta e inequívoca. Remova ou corrija referências a
+`python -m exercises.check`, pois esse módulo não existe.
+
+## Fontes de verdade
+
+Use, nesta ordem:
+
+1. orientação mais recente do estudante ou professor;
+2. `Passo-a-passo.md` depois de sua reformulação para q01;
+3. `Estudo_Dirigido_RP___2026_1.pdf`;
+4. código e testes para comportamento técnico;
+5. este arquivo para o protocolo acordado;
+6. `README.md` como entregável público.
+
+O `Passo-a-passo.md` foi refeito em 21/07/2026 para Adult + q01. Menções à q04
+devem limitar-se à nota histórica de que esse escopo foi abandonado antes de
+implementação e treinamento experimental.
+
+Exponha conflitos e diferencie requisito do professor, decisão do estudante,
+observação do código e recomendação do agente.
 
 ## Convenções e limites
 
-- Preserve NumPy/CPU e justifique qualquer nova dependência em
-  `requirements.txt`.
-- A classificação usa tensores `(features, amostras)`.
-- A configuração atual usa 108 entradas, `hidden=64`, `epochs=100`, `lr=1e-2`,
-  Adam e validação de 20%.
-- A baseline tem 7.106 parâmetros; a q04 adiciona três coeficientes, totalizando
-  7.109, sem contar configurações que alterem outras dimensões.
-- Não altere datasets brutos nem duplique a tarefa para cada configuração.
-- Faça mudanças pequenas, configuráveis e compatíveis com alterações do
-  estudante.
-- Não faça commit, push ou publicação sem solicitação explícita.
+- preserve NumPy/CPU;
+- justifique e registre toda dependência em `requirements.txt`;
+- não altere datasets brutos;
+- não duplique a classificação para cada configuração;
+- faça mudanças pequenas, configuráveis e compatíveis com trabalho do estudante;
+- não execute variantes antes da baseline;
+- não use resultados para escolher hipóteses ou níveis retrospectivamente;
+- não faça commit, push, publicação ou alteração externa sem solicitação
+  explícita.
 
 ## IA e autoria
 
-Registre contribuições materiais da IA em `experiments/ai_usage.md`: data,
-objetivo, sugestão ou código, arquivos afetados, verificação realizada,
-correções e decisão final do estudante.
+Quando os novos artefatos forem inaugurados, registre contribuições materiais da
+IA em `experiments/ai_usage.md`: data, objetivo, sugestão ou código, arquivos
+afetados, verificação executada, correções e decisão final do estudante.
 
-Explique em português claro e diferencie observação, inferência e recomendação.
-Nunca invente execução, métrica, FLOPs, citação ou validação humana. Só descreva
-uma saída de IA como compreendida e validada após verificação real.
+Explique em português claro. Nunca invente execução, métrica, FLOPs, citação ou
+validação humana. O agente pode estruturar, implementar e revisar, mas o
+estudante deve conseguir explicar e assumir as decisões finais.
 
-## Critério de conclusão
+## Critério de conclusão futuro
 
-- código e gradient checks validados;
+- q01 implementada com forwards e backwards corretos e estáveis;
+- gradient checks e integração com a MLP validados;
 - baseline e variantes reproduzíveis;
-- hipóteses e configurações preservadas;
-- acurácia e FLOPs completos em logs, tabela e gráfico;
-- trade-off, retornos decrescentes e limitações analisados;
-- `README.md` e `requirements.txt` fiéis ao experimento;
-- dificuldades e uso de IA documentados;
-- os 12 requisitos do vídeo ligados a evidências verificáveis no repositório;
-- repositório GitHub e vídeo de até 20 minutos prontos para entrega.
+- três variáveis estudadas isoladamente e em profundidade;
+- hipóteses e controles preservados antes dos resultados;
+- acurácias e FLOPs completos em logs, tabela e gráfico;
+- retorno por FLOP, Pareto, orçamento e retornos decrescentes analisados;
+- limitações e resultados negativos documentados;
+- README e `requirements.txt` fiéis ao experimento;
+- uso de IA e dificuldades registrados;
+- 12 requisitos do vídeo ligados a evidências verificáveis;
+- repositório e vídeo de até 20 minutos prontos para entrega.
 
-Permanecem ambíguos no enunciado o número de repetições, a métrica primária entre
-as acurácias, a fórmula de retorno por FLOP e o critério exato de profundidade de
-uma variável. Defina essas escolhas antes dos experimentos e recomende consulta
-ao professor se houver impacto relevante na avaliação.
+Neste momento, Adult + q01, baseline, variáveis e protocolo quantitativo estão
+confirmados. A consulta ao professor sobre o enquadramento de V3 foi rejeitada
+pelo estudante e permanece apenas como risco documentado. Nenhuma hipótese
+experimental foi testada e nenhum código de q01 foi implementado. Os novos
+artefatos, configurações e hipóteses de V1 já foram registrados.
