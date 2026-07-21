@@ -46,3 +46,11 @@
 
 - **Efeito final esperado:** obter uma análise apoiada nos valores medidos que identifique configurações eficientes, dominadas ou pertencentes à fronteira de Pareto, além de explicitar os critérios usados para retorno por FLOP, retornos decrescentes e orçamento fixo.
 - **Observação:** este passo registra somente o plano e as perguntas que deverão ser respondidas. A fórmula de retorno por FLOP, o orçamento de referência, os gráficos, as respostas e as conclusões ainda não foram definidos ou produzidos.
+
+## Registro das conversas
+
+### Conversa de planejamento — encerrada em 21/07/2026
+- **Encerramento:** esta conversa foi encerrada após a definição do escopo e do plano pré-experimental. As etapas 3 a 6 permanecem planejadas, mas ainda não foram implementadas ou executadas.
+- **Referência da conversa:** conversa de planejamento encerrada em 21/07/2026 e identificada pelo resumo abaixo. O conteúdo relevante foi preservado nos arquivos versionados, portanto não é necessário manter um link externo para o chat.
+- **Resumo extremo:** escolhemos Adult + q04, definimos três variáveis isoladas, estabelecemos o protocolo reprodutível e registramos a futura análise de trade-offs.
+- **Continuidade:** uma nova conversa iniciará exclusivamente a preparação e a execução da Variável 1 — formulação da ativação oculta.
