@@ -244,6 +244,54 @@ Ao final de cada interação que alterar materialmente o projeto, registre:
 Não marque como concluído algo apenas proposto. Se informar percentual, mostre o
 critério, como `itens concluídos / total de itens`.
 
+## Evidências obrigatórias para o vídeo — seção 4 do enunciado
+
+Os 12 pontos abaixo são requisitos explícitos da apresentação, não sugestões.
+Quando o trabalho experimental começar, mantenha
+`experiments/video_evidence.md` como um mapa vivo entre cada requisito e suas
+evidências no repositório. Atualize-o ao concluir cada mudança ou execução
+relevante; não deixe a reconstrução dessas informações apenas para o final.
+
+O mapa de evidências deve preservar todos os itens:
+
+1. **Uso de IA:** o que foi delegado à IA e como código, explicações e sugestões
+   foram verificados, corrigidos e validados pelo estudante.
+2. **Tarefa de aprendizado:** Adult, conjunto de dados, entradas, saídas,
+   objetivo do treinamento e métrica usada para avaliar o desempenho.
+3. **Baseline:** configuração de referência empregada e justificativa de sua
+   escolha.
+4. **Variáveis e controles:** variável modificada em cada experimento e
+   elementos mantidos constantes para garantir comparação controlada.
+5. **Formulação investigada:** descrição matemática ou computacional das
+   modificações e explicação de como elas alteram o processamento da rede.
+6. **Arquitetura e treinamento:** funcionamento do modelo e do processo de
+   treinamento, relacionando implementação e conceitos teóricos da disciplina.
+7. **Protocolo experimental:** quantidade de configurações, repetições, sementes
+   aleatórias e métricas de desempenho escolhidas.
+8. **Resultados completos:** resultados de cada configuração por meio de
+   tabelas, gráficos ou registros de treinamento.
+9. **Desempenho versus FLOPs:** relação entre a métrica de desempenho e os
+   FLOPs, melhor retorno computacional e possíveis retornos decrescentes.
+10. **Hipóteses versus resultados:** quais hipóteses foram sustentadas,
+    refutadas ou permaneceram inconclusivas.
+11. **Dificuldades:** erros, instabilidades, resultados inesperados e alterações
+    realizadas durante a implementação e o desenvolvimento.
+12. **Reprodução:** dependências, comandos, configurações e organização dos
+    arquivos necessários para reproduzir os experimentos.
+
+Para cada item, registre afirmações que poderão ser apresentadas, caminhos dos
+artefatos que as sustentam, IDs de execução ou commits pertinentes, limitações e
+uma explicação em linguagem que o estudante consiga defender. Preserve também
+erros e tentativas descartadas quando forem relevantes ao item 11. Diferencie
+sempre plano, resultado medido e interpretação.
+
+Antes da gravação, converta esse mapa em um roteiro de até 20 minutos que cubra
+os 12 itens. Não basta mostrar o código ou as métricas finais: a apresentação
+deve demonstrar compreensão da modificação, dos fundamentos teóricos, dos
+efeitos sobre o modelo e dos limites das conclusões. O agente pode estruturar e
+revisar o roteiro, mas não deve afirmar que o estudante compreendeu ou validou
+uma explicação sem confirmação dele.
+
 ## Protocolo obrigatório
 
 - Reproduza a baseline antes das variantes e registre commit, ambiente,
@@ -317,6 +365,7 @@ experiments/
   hypotheses.md
   analysis.md
   ai_usage.md
+  video_evidence.md
   plots/
 ```
 
@@ -380,6 +429,7 @@ uma saída de IA como compreendida e validada após verificação real.
 - trade-off, retornos decrescentes e limitações analisados;
 - `README.md` e `requirements.txt` fiéis ao experimento;
 - dificuldades e uso de IA documentados;
+- os 12 requisitos do vídeo ligados a evidências verificáveis no repositório;
 - repositório GitHub e vídeo de até 20 minutos prontos para entrega.
 
 Permanecem ambíguos no enunciado o número de repetições, a métrica primária entre
