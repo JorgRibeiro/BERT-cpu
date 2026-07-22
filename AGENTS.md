@@ -19,7 +19,8 @@ métricas, repetições e regras de análise descritas abaixo. A única recomend
 não adotada foi consultar o professor sobre o enquadramento acadêmico de V3; a
 variável permanece selecionada, com esse risco documentado. Ainda não houve
 treino experimental de 100 épocas nem resultado científico. A q01, a integração
-de V1 e o smoke de duas épocas foram implementados e validados em 21/07/2026.
+de V1, o smoke de duas épocas e o executor persistente foram validados em
+21/07/2026. O estudante autorizou a versão do executor antes das runs completas.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
@@ -115,7 +116,7 @@ O comando abaixo passa atualmente:
 
 ```text
 pytest -q --ignore=test/test_model.py
-98 passed
+120 passed
 ```
 
 Quatro placeholders do Transformer continuam fora do escopo. Não afirme que a
@@ -132,6 +133,20 @@ O contador de FLOPs:
 A convenção confirmada já foi implementada e testada para as três primitivas.
 Relate sempre “FLOPs instrumentados”, nunca tempo, energia, memória ou custo
 completo.
+
+### Executor da V1
+
+`experiments/run_v1.py` executa uma configuração congelada por vez. Ele:
+
+- rejeita runs científicas com código não versionado ou fora da branch;
+- nunca carrega o teste oficial nesta fase;
+- salva histórico e diagnósticos em JSONL e pesos finais em NPZ verificável;
+- valida hashes de dados, split, pesos, configuração, ambiente e FLOPs;
+- não inclui smoke em `results.csv`;
+- bloqueia variantes até concluir e reproduzir a baseline ReLU.
+
+Os diagnósticos usam somente a validação fixa e ficam fora da janela de FLOPs.
+Nenhum artefato científico foi produzido ainda.
 
 ## Fundamentos que o estudante deve conseguir explicar
 
@@ -351,7 +366,9 @@ que V3 foi aceita pelo professor ou que sua bonificação está garantida.
   `requirements.txt` quando a implementação começar;
 - checkpoints: salvar pesos finais, configuração e hash de cada run;
 - proveniência: o estudante autorizou o Passo 0 e o commit da implementação e
-  smoke de V1. Commits futuros e qualquer push exigem nova autorização;
+  smoke de V1. O rastreamento remoto local aponta para esse commit e seu reflog
+  registra `update by push`, embora nenhum comando de push tenha sido executado
+  pelo agente nesta etapa. Commits futuros e qualquer push exigem autorização;
 - enquadramento de V3: a consulta ao professor não será realizada por decisão do
   estudante; o risco acadêmico permanece documentado.
 
@@ -447,12 +464,14 @@ observações.
    21/07/2026;
 8. fazer smoke de V1 e reproduzir `F-RELU` sem consultar o teste — concluído em
    21/07/2026;
-9. executar e encerrar a análise da Variável 1;
-10. somente então implementar, testar, executar e encerrar V2;
-11. somente então implementar, testar, executar e encerrar V3;
-12. realizar a avaliação de teste na fase aprovada;
-13. realizar a análise conjunta de trade-offs;
-14. atualizar README, dependências, uso de IA, vídeo e reprodução.
+9. preparar e validar logs, checkpoints e travas do executor — concluído
+   e versionado em 21/07/2026;
+10. executar e encerrar a análise da Variável 1;
+11. somente então implementar, testar, executar e encerrar V2;
+12. somente então implementar, testar, executar e encerrar V3;
+13. realizar a avaliação de teste na fase aprovada;
+14. realizar a análise conjunta de trade-offs;
+15. atualizar README, dependências, uso de IA, vídeo e reprodução.
 
 Não implemente as três variáveis simultaneamente. Uma implementação fundamental
 compartilhada da q01 pode ser concluída antes das varreduras, mas cada fator
@@ -627,4 +646,5 @@ Neste momento, Adult + q01, baseline, variáveis e protocolo quantitativo estão
 confirmados. A consulta ao professor sobre o enquadramento de V3 foi rejeitada
 pelo estudante e permanece apenas como risco documentado. Nenhuma hipótese
 experimental foi testada. A q01, a integração Adult e o smoke de V1 estão
-validados; as runs definitivas, os logs e os checkpoints ainda não começaram.
+validados. O executor persistente está validado localmente; as runs definitivas
+e seus artefatos ainda não começaram.

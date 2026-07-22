@@ -19,7 +19,7 @@ import argparse
 import os
 import sys
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Callable, Sequence
 
 import numpy as np
 
@@ -192,12 +192,14 @@ def train(
     lr: float = 1e-2,
     *,
     verbose: bool = True,
+    epoch_callback: Callable[[EpochMetrics, AdultMLP], None] | None = None,
 ) -> TrainingResult:
     """Train full-batch with Adam and return every loss, accuracy and FLOP count.
 
     The measured FLOP window is unchanged: training forward/loss/backward and
-    the post-step validation forward/loss. Accuracy calls happen only after the
-    epoch counter is read, so they do not enter the stored epoch cost.
+    the post-step validation forward/loss. Accuracy calls and the optional
+    callback happen only after the epoch counter is read, so they do not enter
+    the stored epoch cost. The next epoch always resets the global counter.
     """
     if epochs <= 0:
         raise ValueError("epochs must be positive")
@@ -235,6 +237,9 @@ def train(
         )
         history.append(metrics)
 
+        if epoch_callback is not None:
+            epoch_callback(metrics, model)
+
         if verbose:
             print(
                 f"  epoch {epoch:3d}/{epochs}"
@@ -268,6 +273,7 @@ def run_experiment(
     lr: float = 1e-2,
     evaluate_test: bool = False,
     verbose: bool = True,
+    epoch_callback: Callable[[EpochMetrics, AdultMLP], None] | None = None,
 ) -> ExperimentResult:
     """Run one V1 configuration; load the official test only when requested."""
     train_dataset = datasets.load_adult("train")
@@ -310,6 +316,7 @@ def run_experiment(
         epochs=epochs,
         lr=lr,
         verbose=verbose,
+        epoch_callback=epoch_callback,
     )
 
     test_accuracy = None

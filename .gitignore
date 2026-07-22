@@ -9,3 +9,7 @@ __pycache__/
 .pytest_cache/
 build/
 dist/
+
+# Runtime-only locks and run-ID reservations
+experiments/results.csv.lock
+experiments/.run_reservations/

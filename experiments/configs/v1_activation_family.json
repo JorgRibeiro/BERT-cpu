@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "implementation_and_smoke_validated",
+  "status": "runner_validated_ready_for_scientific_runs",
   "created_at": "2026-07-21",
   "task": "adult_binary_classification",
   "variable": "V1_activation_family",
@@ -11,6 +11,16 @@
     "hidden_features": 64,
     "output_classes": 2,
     "parameters": 7106
+  },
+  "data": {
+    "raw_train_sha256": "5b00264637dbfec36bdeaab5676b0b309ff9eb788d63554ca0a249491c86603d",
+    "encoded_train_sha256": "b67c409c6f3fd0bfa90455e629af7d9b672260cb9267ae949103081a3fad1dfa",
+    "split_sha256": "118bb0951fa1e0c4d88a4bbb493635d132492e2a52fb94698b792a99cec47bc0",
+    "initial_weights_sha256": {
+      "0": "9b1fe0ce77aacdb4ec92847cb6026b61ec028f18a3948ee85873448d664f4596",
+      "1": "d34dd1e6783a999faff6e235aefd23cd1e85a06bbe126423aec25bb1d8f867ae",
+      "2": "0310d0d1c0c02d2fc0754b90f2d9b35150972361d64c9333bf52541163c26a29"
+    }
   },
   "training": {
     "batching": "full_batch",
@@ -28,29 +38,51 @@
     "checkpoint": "epoch_100",
     "test_policy": "final_phase_only_all_valid_configurations"
   },
+  "diagnostics": {
+    "population": "fixed_validation_split",
+    "epochs": [0, 1, 25, 50, 75, 100],
+    "percentiles": [1, 5, 50, 95, 99],
+    "near_zero_threshold": 1e-6,
+    "low_abs_derivative_threshold": 0.05,
+    "sigmoid_saturation_bounds": [0.05, 0.95]
+  },
+  "artifacts": {
+    "log_format": "jsonl",
+    "checkpoint_format": "npz_without_pickle",
+    "smoke_appends_results": false,
+    "scientific_run_requires_clean_source": true
+  },
   "configurations": [
     {
       "id": "F-RELU",
       "activation": "relu",
       "activation_flops_per_element": 1,
+      "expected_flops_per_epoch": 842375505,
+      "expected_inference_flops_total": 92965312,
       "baseline": true
     },
     {
       "id": "F-SIGMOID",
       "activation": "sigmoid",
       "activation_flops_per_element": 4,
+      "expected_flops_per_epoch": 848627217,
+      "expected_inference_flops_total": 94215616,
       "baseline": false
     },
     {
       "id": "F-SWISH",
       "activation": "swish",
       "activation_flops_per_element": 5,
+      "expected_flops_per_epoch": 850711121,
+      "expected_inference_flops_total": 94632384,
       "baseline": false
     },
     {
       "id": "F-SOFTPLUS",
       "activation": "softplus",
       "activation_flops_per_element": 3,
+      "expected_flops_per_epoch": 846543313,
+      "expected_inference_flops_total": 93798848,
       "baseline": false
     }
   ]

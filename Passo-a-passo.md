@@ -10,6 +10,7 @@ ficam em `AGENTS.md`.
 - Adult, q01, baseline, variáveis e protocolo estão confirmados.
 - Artefatos novos, configuração e hipóteses de V1 estão registrados.
 - q01 e a integração Adult de V1 passaram nos testes e no smoke de duas épocas.
+- O executor de logs/checkpoints passou nos testes e foi autorizado para commit.
 - Nenhuma run de 100 épocas ou conclusão experimental foi produzida.
 - Não fazer commit ou push sem autorização.
 
@@ -90,6 +91,9 @@ pytest -q --ignore=test/test_model.py
 - [x] Separar o split da seed de inicialização.
 - [x] Impedir consulta automática ao teste.
 - [x] Fazer smoke de duas épocas e repetir ReLU com resultado idêntico.
+- [x] Preparar logs JSONL, checkpoints NPZ, hashes e travas contra duplicação.
+- [x] Validar o executor com testes e smoke isolado.
+- [x] Versionar o executor após autorização.
 - Executar e reproduzir `F-RELU` primeiro.
 - Executar as quatro configurações com seeds `0`, `1` e `2`.
 - Salvar resultados e checkpoints.
@@ -134,5 +138,5 @@ Somente depois de fechar V2:
 
 ## Próximo passo
 
-Preparar logs/checkpoints e executar a baseline definitiva antes das variantes.
-Não implementar V2 ou V3.
+Executar a `F-RELU` definitiva e sua reprodução antes das variantes. Não
+implementar V2 ou V3.
