@@ -113,6 +113,15 @@ def _forward_flops(op: str, out_data: np.ndarray, children) -> int:
         return 3 * n
     if op == "gelu":                               # several mul/add/tanh per element
         return 8 * n
+    # q01 activation primitives use the experiment's fixed analytical
+    # convention.  Their backward rules remain outside the FLOP counter, just
+    # like the engine's other elementwise operations.
+    if op == "sigmoid":                            # negate + exp + add + divide
+        return 4 * n
+    if op == "swish":                              # sigmoid cost + final multiply
+        return 5 * n
+    if op == "softplus":                           # exp + add + log
+        return 3 * n
     return n                                       # elementwise: +, *, **k, exp, log, ...
 
 
@@ -597,6 +606,18 @@ class Tensor:
         )
 
         def _backward() -> None:
+            # NumPy's vector @ vector is a scalar dot product.  Its gradients
+            # are scalar-vector products, so the matrix-only swapaxes formula
+            # below does not apply (a vector has no axis -2).
+            if self.data.ndim == 1 and other.data.ndim == 1:
+                if self.requires_grad:
+                    self.grad += other.data * out.grad
+                    _add_flops(self.data.size)
+                if other.requires_grad:
+                    other.grad += self.data * out.grad
+                    _add_flops(other.data.size)
+                return
+
             if self.requires_grad:
                 grad = out.grad @ np.swapaxes(other.data, -1, -2)   # dA = grad @ Bᵀ
                 _add_flops(2 * self.data.size * out.grad.shape[-1])

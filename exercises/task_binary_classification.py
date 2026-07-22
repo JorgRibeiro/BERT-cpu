@@ -1,65 +1,29 @@
-"""Exercise 05 — Binary classification on the Adult dataset (the baseline).
+"""Binary classification on Adult with the activation family from q01.
 
-This is the **capstone**: the first exercise that runs the *whole* pipeline end
-to end on real data. Everything the earlier files built in isolation — the
-autograd engine, a `Linear` layer, an activation, an optimiser, a loss — is
-assembled here into a working income classifier and **actually trained**.
+The model keeps the original column-oriented architecture ``108 -> 64 -> 2``.
+For Variable 1, only the hidden activation changes: ReLU (the default),
+Sigmoid, Swish or Softplus. Training is full-batch Adam and validation is a
+fixed hold-out from the official Adult training file.
 
-    datasets.load_adult  ->  X, y (model-ready NumPy)
-              |
-         nn.Linear + relu + nn.Linear     (the model — a small MLP)
-              |
-         cross_entropy(logits, y)         (scalar loss; one graph back to W)
-              |
-         loss.backward()                  (fills every parameter's .grad)
-              |
-         optim.Adam(...).step()           (nudges each parameter downhill)
+The official test file is deliberately opt-in. A normal invocation uses only
+training and validation data::
 
-It is the *baseline*: complete, runnable, nothing to fill in. (The other
-exercises, q01–q04, deliberately never train — they gradient-check a `forward`.
-q05 is the sanctioned exception, because a classifier only means something once
-it is trained.) A later pass will turn parts of this into student TODOs and add
-guided questions and tests.
+    python -m exercises.task_binary_classification --activation relu
 
-The whole Adult training set fits in memory, so there is no need for
-mini-batches: each epoch is one **full-batch** step over *all* training rows at
-once — the four-line cycle from the ``loss.py`` / ``optim.py`` docstrings::
-
-    opt.zero_grad()                 # clear last step's gradients
-    loss = cross_entropy(model(X).T, y)
-    loss.backward()                 # one graph: loss -> ... -> every weight
-    opt.step()                      # p.data -= lr * (adam update)
-
-A slice of the training base is held out as a **validation** set. At the end of
-each epoch we also measure the loss there (a forward pass only, no gradient
-step): if the training loss keeps falling while the validation loss turns back
-up, the model is starting to over-fit.
-
-Conventions
------------
-Column-oriented like the rest of the library: features run down axis 0 and
-samples across axis 1, so ``X`` is ``(n_features, n_samples)`` and ``nn.Linear``
-consumes it directly. The model outputs logits ``(2, batch)``; we transpose to
-``(batch, 2)`` for ``cross_entropy`` (whose class axis is last). Binary income
-(``<=50K`` / ``>50K``) is framed as a **2-class** problem so the existing
-``cross_entropy`` is reused unchanged.
-
-HOW TO RUN
-==========
-    python -m exercises.q05_binary_classification
+Use ``--evaluate-test`` only in the previously approved final evaluation phase.
 """
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
+from dataclasses import dataclass
+from typing import Sequence
 
 import numpy as np
 
-# Make the script runnable *directly* (``python exercises/q05_binary_classification.py``)
-# as well as via ``python -m exercises.q05_binary_classification``. Running a file
-# directly only puts its own folder (``exercises/``) on the import path, so we add
-# the repo root so ``datasets`` and ``bert_cpu`` resolve either way.
+# Also support ``python exercises/task_binary_classification.py``.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import datasets
@@ -67,58 +31,155 @@ from bert_cpu import engine as cpu
 from bert_cpu import nn
 from bert_cpu import optim
 from bert_cpu.loss import cross_entropy
+from exercises.q01_activations import ExTensor
+
+
+ACTIVATIONS = ("relu", "sigmoid", "swish", "softplus")
 
 
 # ============================================================================ #
-# The model — a small multilayer perceptron
+# Model
 # ============================================================================ #
 class AdultMLP(nn.Module):
-    """``Linear -> ReLU -> Linear`` classifier over the Adult features.
+    """``Linear -> activation -> Linear`` classifier for Adult.
 
-    Two learnable layers (each a ``nn.Linear`` with its bias folded into the
-    weight, the project's bias trick). The hidden ReLU gives the model the
-    non-linearity it needs to beat a plain logistic regression; the final layer
-    produces two logits, one per income class.
+    ReLU remains the default so existing callers keep the historical baseline.
+    The q01 methods are called as unbound methods on ``z``. This preserves the
+    graph created by ``fc1``; wrapping ``z`` in a new ``ExTensor`` would copy
+    only its data and disconnect the first layer from the loss.
     """
 
-    def __init__(self, n_features: int, hidden: int = 64) -> None:
+    def __init__(
+        self,
+        n_features: int,
+        hidden: int = 64,
+        activation: str = "relu",
+    ) -> None:
+        if activation not in ACTIVATIONS:
+            choices = ", ".join(ACTIVATIONS)
+            raise ValueError(f"unknown activation {activation!r}; choose one of: {choices}")
+        self.n_features = n_features
+        self.hidden = hidden
+        self.activation = activation
         self.fc1 = nn.Linear(n_features, hidden)
         self.fc2 = nn.Linear(hidden, 2)
 
+    def _activate(self, z: cpu.Tensor) -> cpu.Tensor:
+        if self.activation == "relu":
+            return z.relu()
+        if self.activation == "sigmoid":
+            return ExTensor.sigmoid(z)
+        if self.activation == "swish":
+            return ExTensor.swish(z)
+        return ExTensor.softplus(z)
+
     def forward(self, x: cpu.Tensor) -> cpu.Tensor:
-        # x: (n_features, batch)  ->  logits: (2, batch), column-oriented.
-        h = self.fc1(x).relu()
-        return self.fc2(h)
+        """Return logits shaped ``(2, batch)`` without detaching ``fc1``."""
+        z = self.fc1(x)
+        return self.fc2(self._activate(z))
+
+
+def build_model(
+    n_features: int,
+    activation: str = "relu",
+    model_seed: int = 0,
+) -> AdultMLP:
+    """Seed immediately before model construction, independently of the split."""
+    cpu.set_seed(model_seed)
+    return AdultMLP(n_features, hidden=64, activation=activation)
+
+
+def parameter_count(model: AdultMLP) -> int:
+    """Number of trainable scalar parameters."""
+    return int(sum(parameter.data.size for parameter in model.parameters()))
 
 
 # ============================================================================ #
-# Evaluation
+# Fixed training/validation split
+# ============================================================================ #
+def train_val_indices(
+    n_samples: int,
+    val_frac: float = 0.2,
+    split_seed: int = 0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return fixed ``(train_indices, validation_indices)``.
+
+    ``RandomState`` intentionally uses NumPy's legacy MT19937 sequence. Thus
+    seed 0 reproduces the permutation generated by the previous global
+    ``np.random.seed(0); np.random.permutation(...)`` implementation, without
+    consuming or changing the random state used for model initialization.
+    """
+    if n_samples <= 0:
+        raise ValueError("n_samples must be positive")
+    if not 0.0 < val_frac < 1.0:
+        raise ValueError("val_frac must be between 0 and 1")
+
+    permutation = np.random.RandomState(split_seed).permutation(n_samples)
+    n_val = int(n_samples * val_frac)
+    if n_val == 0:
+        raise ValueError("validation split would be empty")
+    val_idx = permutation[:n_val]
+    train_idx = permutation[n_val:]
+    return train_idx, val_idx
+
+
+def train_val_split(
+    X: np.ndarray,
+    y: np.ndarray,
+    val_frac: float = 0.2,
+    split_seed: int = 0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Split column-oriented arrays using indices fixed by ``split_seed``."""
+    if X.ndim != 2:
+        raise ValueError("X must have shape (features, samples)")
+    if X.shape[1] != len(y):
+        raise ValueError("X and y must contain the same number of samples")
+    train_idx, val_idx = train_val_indices(X.shape[1], val_frac, split_seed)
+    return X[:, train_idx], y[train_idx], X[:, val_idx], y[val_idx]
+
+
+# ============================================================================ #
+# Evaluation and structured training output
 # ============================================================================ #
 def accuracy(model: AdultMLP, X: np.ndarray, y: np.ndarray) -> float:
-    """Fraction of samples whose arg-max logit matches the label.
-
-    A pure forward pass (no graph needed for a metric); ``model`` predicts the
-    class with the larger logit for every column of ``X``.
-    """
-    logits = model(cpu.Tensor(X)).data          # (2, n_samples)
-    preds = logits.argmax(axis=0)               # class per sample
-    return float((preds == y).mean())
+    """Fraction of samples whose largest logit matches the label."""
+    logits = model(cpu.Tensor(X, requires_grad=False)).data
+    predictions = logits.argmax(axis=0)
+    return float((predictions == y).mean())
 
 
-# ============================================================================ #
-# Training
-# ============================================================================ #
-def train_val_split(X: np.ndarray, y: np.ndarray, val_frac: float = 0.2):
-    """Carve a validation set out of the training base (column-oriented split).
+@dataclass(frozen=True)
+class EpochMetrics:
+    """Measurements from one epoch; accuracies are computed after the update."""
 
-    Shuffles the sample indices once and holds out ``val_frac`` of them for
-    validation. Returns ``(X_tr, y_tr, X_val, y_val)``.
-    """
-    n = X.shape[1]                              # samples across axis 1
-    perm = np.random.permutation(n)
-    n_val = int(n * val_frac)
-    val_idx, tr_idx = perm[:n_val], perm[n_val:]
-    return X[:, tr_idx], y[tr_idx], X[:, val_idx], y[val_idx]
+    epoch: int
+    train_loss: float
+    val_loss: float
+    train_accuracy: float
+    val_accuracy: float
+    flops: int
+
+
+@dataclass(frozen=True)
+class TrainingResult:
+    """Complete in-memory record returned by ``train``."""
+
+    history: tuple[EpochMetrics, ...]
+    total_flops: int
+    final_train_accuracy: float
+    final_val_accuracy: float
+
+
+@dataclass(frozen=True)
+class ExperimentResult:
+    """Model, configuration and metrics from one CLI/programmatic run."""
+
+    model: AdultMLP
+    training: TrainingResult
+    activation: str
+    model_seed: int
+    split_seed: int
+    test_accuracy: float | None = None
 
 
 def train(
@@ -129,75 +190,183 @@ def train(
     y_val: np.ndarray,
     epochs: int = 100,
     lr: float = 1e-2,
-) -> None:
-    """Full-batch training with Adam; report train and validation loss per epoch.
+    *,
+    verbose: bool = True,
+) -> TrainingResult:
+    """Train full-batch with Adam and return every loss, accuracy and FLOP count.
 
-    The whole training split is one batch, so each epoch is a single
-    forward/backward over every row. The input tensors are built once and marked
-    ``requires_grad=False`` (we need gradients on the *parameters*, not the data),
-    which also avoids uselessly accumulating gradient into the inputs.
+    The measured FLOP window is unchanged: training forward/loss/backward and
+    the post-step validation forward/loss. Accuracy calls happen only after the
+    epoch counter is read, so they do not enter the stored epoch cost.
     """
-    opt = optim.Adam(model.parameters(), lr=lr)
-    Xt = cpu.Tensor(X_tr, requires_grad=False)      # (n_features, n_train), a constant
-    Xv = cpu.Tensor(X_val, requires_grad=False)     # (n_features, n_val),   a constant
+    if epochs <= 0:
+        raise ValueError("epochs must be positive")
+    if lr <= 0.0:
+        raise ValueError("lr must be positive")
 
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    train_tensor = cpu.Tensor(X_tr, requires_grad=False)
+    val_tensor = cpu.Tensor(X_val, requires_grad=False)
+
+    history: list[EpochMetrics] = []
     total_flops = 0
     for epoch in range(1, epochs + 1):
-        cpu.reset_flops()                           # start this epoch's FLOP tally
+        cpu.reset_flops()
 
-        opt.zero_grad()
-        loss = cross_entropy(model(Xt).T, y_tr)     # full-batch training loss
-        loss.backward()                             # one graph -> every weight's grad
-        opt.step()
+        optimizer.zero_grad()
+        loss = cross_entropy(model(train_tensor).T, y_tr)
+        loss.backward()
+        optimizer.step()
 
-        # Validation loss: a forward pass only (no backward, no step) on the
-        # held-out slice of the training base.
-        val_loss = float(cross_entropy(model(Xv).T, y_val).data)
-
-        # FLOPs the engine executed this epoch (train forward + backward + the
-        # validation forward). It is the same every epoch — the graph is fixed.
+        val_loss = float(cross_entropy(model(val_tensor).T, y_val).data)
         epoch_flops = cpu.flop_count()
         total_flops += epoch_flops
 
-        print(f"  epoch {epoch:3d}/{epochs}   train loss = {float(loss.data):.4f}"
-              f"   val loss = {val_loss:.4f}   FLOPs = {epoch_flops:,}")
+        # These diagnostics are deliberately outside the measured FLOP window.
+        train_accuracy = accuracy(model, X_tr, y_tr)
+        val_accuracy = accuracy(model, X_val, y_val)
+        metrics = EpochMetrics(
+            epoch=epoch,
+            train_loss=float(loss.data),
+            val_loss=val_loss,
+            train_accuracy=train_accuracy,
+            val_accuracy=val_accuracy,
+            flops=epoch_flops,
+        )
+        history.append(metrics)
 
-    print(f"\nTotal FLOPs over {epochs} epochs: {total_flops:,}"
-          f"   (~{total_flops / 1e9:.2f} GFLOP)")
+        if verbose:
+            print(
+                f"  epoch {epoch:3d}/{epochs}"
+                f"   train loss = {metrics.train_loss:.4f}"
+                f"   val loss = {metrics.val_loss:.4f}"
+                f"   train acc = {metrics.train_accuracy:.4f}"
+                f"   val acc = {metrics.val_accuracy:.4f}"
+                f"   FLOPs = {epoch_flops:,}"
+            )
+
+    result = TrainingResult(
+        history=tuple(history),
+        total_flops=total_flops,
+        final_train_accuracy=history[-1].train_accuracy,
+        final_val_accuracy=history[-1].val_accuracy,
+    )
+    if verbose:
+        print(
+            f"\nTotal FLOPs over {epochs} epochs: {total_flops:,}"
+            f"   (~{total_flops / 1e9:.2f} GFLOP)"
+        )
+    return result
 
 
-# ============================================================================ #
-# Entry point
-# ============================================================================ #
-def main() -> None:
-    print("=" * 70)
-    print("Adult income classification — end-to-end baseline on bert_cpu")
-    print("=" * 70)
+def run_experiment(
+    *,
+    activation: str = "relu",
+    epochs: int = 100,
+    model_seed: int = 0,
+    split_seed: int = 0,
+    lr: float = 1e-2,
+    evaluate_test: bool = False,
+    verbose: bool = True,
+) -> ExperimentResult:
+    """Run one V1 configuration; load the official test only when requested."""
+    train_dataset = datasets.load_adult("train")
+    X_tr, y_tr, X_val, y_val = train_val_split(
+        train_dataset.X,
+        train_dataset.y,
+        val_frac=0.2,
+        split_seed=split_seed,
+    )
 
-    cpu.set_seed(0)                             # reproducible init + shuffling
+    # This must remain immediately before construction for comparable weights.
+    model = build_model(
+        train_dataset.n_features,
+        activation=activation,
+        model_seed=model_seed,
+    )
 
-    train_ds = datasets.load_adult("train")
-    test_ds = datasets.load_adult("test")
-    print(f"\nData: {train_ds}   {test_ds}")
-    print(f"Features per sample: {train_ds.n_features}  (standardised + one-hot)")
+    if verbose:
+        print("=" * 70)
+        print("Adult income classification — q01 activation family")
+        print("=" * 70)
+        print(
+            f"Data: {train_dataset}"
+            f"\nTrain/val: {X_tr.shape[1]} / {X_val.shape[1]}"
+            f"   split seed = {split_seed}"
+        )
+        print(
+            f"Model: Linear({train_dataset.n_features}, 64) -> {activation}"
+            f" -> Linear(64, 2)   parameters = {parameter_count(model):,}"
+            f"   model seed = {model_seed}\n"
+        )
+        print("Training (full-batch Adam):")
 
-    # Hold out 20% of the training base for validation.
-    X_tr, y_tr, X_val, y_val = train_val_split(train_ds.X, train_ds.y, val_frac=0.2)
-    print(f"Train/val split: {X_tr.shape[1]} train / {X_val.shape[1]} val (20%)\n")
+    training = train(
+        model,
+        X_tr,
+        y_tr,
+        X_val,
+        y_val,
+        epochs=epochs,
+        lr=lr,
+        verbose=verbose,
+    )
 
-    model = AdultMLP(train_ds.n_features, hidden=64)
-    print(f"Model: Linear({train_ds.n_features}, 64) -> ReLU -> Linear(64, 2)")
-    print(f"Trainable parameter tensors: {len(model.parameters())}\n")
+    test_accuracy = None
+    if evaluate_test:
+        test_dataset = datasets.load_adult("test")
+        test_accuracy = accuracy(model, test_dataset.X, test_dataset.y)
 
-    print("Training (full-batch Adam):")
-    train(model, X_tr, y_tr, X_val, y_val, epochs=100, lr=1e-2)
+    if verbose:
+        message = (
+            "\nFinal accuracy"
+            f"   train = {training.final_train_accuracy:.4f}"
+            f"   val = {training.final_val_accuracy:.4f}"
+        )
+        if test_accuracy is not None:
+            message += f"   test = {test_accuracy:.4f}"
+        print(message)
 
-    train_acc = accuracy(model, X_tr, y_tr)
-    val_acc = accuracy(model, X_val, y_val)
-    test_acc = accuracy(model, test_ds.X, test_ds.y)
-    print(f"\nFinal accuracy   train = {train_acc:.4f}   val = {val_acc:.4f}   test = {test_acc:.4f}")
-    # A majority-class baseline (always predict <=50K) scores ~0.76 on test;
-    # this MLP should comfortably clear that, landing around 0.84–0.85.
+    return ExperimentResult(
+        model=model,
+        training=training,
+        activation=activation,
+        model_seed=model_seed,
+        split_seed=split_seed,
+        test_accuracy=test_accuracy,
+    )
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Train the Adult MLP with one Variable 1 activation.",
+    )
+    parser.add_argument("--activation", choices=ACTIVATIONS, default="relu")
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--model-seed", type=int, default=0)
+    parser.add_argument("--split-seed", type=int, default=0)
+    parser.add_argument("--lr", type=float, default=1e-2)
+    parser.add_argument(
+        "--evaluate-test",
+        action="store_true",
+        help="opt in to the official Adult test set (final evaluation only)",
+    )
+    parser.add_argument("--quiet", action="store_true")
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> ExperimentResult:
+    """Parse CLI arguments and return the structured experiment result."""
+    args = _build_parser().parse_args(argv)
+    return run_experiment(
+        activation=args.activation,
+        epochs=args.epochs,
+        model_seed=args.model_seed,
+        split_seed=args.split_seed,
+        lr=args.lr,
+        evaluate_test=args.evaluate_test,
+        verbose=not args.quiet,
+    )
 
 
 if __name__ == "__main__":

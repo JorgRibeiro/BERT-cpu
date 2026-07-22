@@ -1,4 +1,5 @@
 # Análise experimental
 
-Nenhum resultado foi produzido. Este arquivo será preenchido depois das runs
-válidas da Variável 1.
+As quatro configurações passaram no smoke de duas épocas com seed 0, valores
+finitos e sem consulta ao teste. O smoke não entra em `results.csv` e não testa
+as hipóteses. Ainda não há resultado experimental.

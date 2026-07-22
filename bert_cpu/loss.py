@@ -4,7 +4,7 @@ Where does the loss sit relative to the model? *On the same graph.* A loss
 function is **not** special machinery — it is simply a few more ``Tensor`` ops
 appended to the front of the graph the model already built. The scalar it
 returns becomes the graph's new **root**, and because it is stitched together
-from differentiable engine ops (``softmax``, ``log``, ``*``, ``sum``, ``/``), its
+from differentiable engine ops (``exp``, ``log``, ``*``, ``sum``, ``/``), its
 ``_prev`` chain runs unbroken all the way down to the model's parameters.
 
 The crucial mental model: the ``logits`` handed to a loss are **not an input or
@@ -15,9 +15,7 @@ subgraph beneath them::
         |
        nll
         |
-    logp = log(probs)
-        |
-     probs = softmax(logits)
+    logp = logits - logsumexp(logits)
         |
      logits    <--- one Tensor variable you can see...
         |
@@ -91,12 +89,23 @@ def cross_entropy(logits: Tensor, targets, ignore_index: int = -100) -> Tensor:
     n_valid = max(float(valid.sum()), 1.0)
 
     # --- Differentiable path: these ops extend the model's graph -------------
-    # softmax already subtracts the per-row max internally (as untracked NumPy),
-    # so probs are numerically stable and log(probs) = log_softmax. Composing the
-    # engine's softmax and log reproduces the exact cross-entropy gradient by the
-    # chain rule (verified in test/test_loss.py).
-    probs = logits.softmax(axis=-1)                  # (..., C)
-    logp = probs.log()                               # (..., C)
+    # Compute log-softmax directly through the log-sum-exp identity. Calling
+    # ``softmax().log()`` is not enough: for a very unlikely class, softmax may
+    # round to exactly zero before ``log`` sees it, producing ``-inf`` and NaN
+    # gradients. Subtracting the largest logit first makes every exponent
+    # non-positive and guarantees that each denominator contains ``exp(0)``.
+    #
+    # The maximum is deliberately a detached constant. Its derivative cancels
+    # algebraically in ``shifted - logsumexp(shifted)``, so keeping it off-graph
+    # preserves the exact log-softmax gradient while avoiding a needless,
+    # non-smooth path through ``max`` (especially when several logits tie).
+    row_max = Tensor(
+        logits.data.max(axis=-1, keepdims=True),
+        requires_grad=False,
+    )
+    shifted = logits - row_max                       # (..., C), max is exactly zero
+    log_normalizer = shifted.exp().sum(axis=-1, keepdims=True).log()
+    logp = shifted - log_normalizer                  # finite even near probability 0
     # Multiplying by the constant one_hot and summing the class axis is the
     # in-graph way to "gather" each position's correct-class log-prob.
     nll = -(logp * one_hot).sum(axis=-1)             # (...) ; 0 at ignored positions

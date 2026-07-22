@@ -165,6 +165,19 @@ def test_matmul_backward():
     assert np.allclose(b.grad, a.data.T @ upstream)
 
 
+def test_vector_dot_backward():
+    """The scalar dot product sends the opposite vector to each gradient."""
+    a = cpu.Tensor(np.array([1.5, -2.0, 0.25]))
+    b = cpu.Tensor(np.array([-0.5, 3.0, 4.0]))
+
+    out = a @ b
+    out.backward()
+
+    assert out.shape == ()
+    assert np.allclose(a.grad, b.data)
+    assert np.allclose(b.grad, a.data)
+
+
 def test_softmax_sums_to_one():
     """Softmax output is a valid probability distribution along its axis."""
     logits = cpu.Tensor(np.random.randn(6, 10))

@@ -9,7 +9,8 @@ ficam em `AGENTS.md`.
 - q04 foi abandonada antes de implementação ou experimento.
 - Adult, q01, baseline, variáveis e protocolo estão confirmados.
 - Artefatos novos, configuração e hipóteses de V1 estão registrados.
-- Ainda não implementamos q01 nem executamos treinamentos experimentais.
+- q01 e a integração Adult de V1 passaram nos testes e no smoke de duas épocas.
+- Nenhuma run de 100 épocas ou conclusão experimental foi produzida.
 - Não fazer commit ou push sem autorização.
 
 ## O que vamos testar
@@ -69,14 +70,12 @@ reexecução de `F-RELU` para conferir determinismo.
 - [x] Registrar branch e commit base; diff e hashes serão congelados antes das
   runs completas.
 
-### 2. Implementar a q01 básica
+### 2. Implementar a q01 básica — concluído em 21/07/2026
 
-- Implementar Sigmoid, Swish e Softplus estáveis com backward correto.
-- Instrumentar os FLOPs confirmados.
-- Criar testes de valor, extremos e gradient check.
-- Incluir Matplotlib em `requirements.txt` e gerar o gráfico da q01.
-- Testar a cross-entropy com logits extremos; se loss ou gradiente não for
-  finito, estabilizá-la antes da baseline.
+- [x] Implementar e testar Sigmoid, Swish e Softplus estáveis.
+- [x] Instrumentar os FLOPs confirmados.
+- [x] Gerar o gráfico da q01 e registrar Matplotlib.
+- [x] Estabilizar a cross-entropy após reproduzir a falha extrema.
 
 Validar:
 
@@ -87,10 +86,10 @@ pytest -q --ignore=test/test_model.py
 
 ### 3. Executar a Variável 1
 
-- Tornar a mesma `AdultMLP` configurável para as quatro ativações.
-- Separar a criação do split da seed de inicialização do modelo.
-- Impedir consulta automática ao teste.
-- Fazer smoke test de duas épocas.
+- [x] Tornar a mesma `AdultMLP` configurável para as quatro ativações.
+- [x] Separar o split da seed de inicialização.
+- [x] Impedir consulta automática ao teste.
+- [x] Fazer smoke de duas épocas e repetir ReLU com resultado idêntico.
 - Executar e reproduzir `F-RELU` primeiro.
 - Executar as quatro configurações com seeds `0`, `1` e `2`.
 - Salvar resultados e checkpoints.
@@ -135,5 +134,5 @@ Somente depois de fechar V2:
 
 ## Próximo passo
 
-Os registros de V1 estão prontos. O próximo passo, após autorização, é
-implementar a q01 básica. Não implementar V2 ou V3 antecipadamente.
+Preparar logs/checkpoints e executar a baseline definitiva antes das variantes.
+Não implementar V2 ou V3.

@@ -18,7 +18,8 @@ o estudante confirmou as três variáveis, sua ordem, hipóteses, controles,
 métricas, repetições e regras de análise descritas abaixo. A única recomendação
 não adotada foi consultar o professor sobre o enquadramento acadêmico de V3; a
 variável permanece selecionada, com esse risco documentado. Ainda não houve
-implementação de q01, treino experimental ou resultado.
+treino experimental de 100 épocas nem resultado científico. A q01, a integração
+de V1 e o smoke de duas épocas foram implementados e validados em 21/07/2026.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
@@ -43,8 +44,7 @@ respectivamente.
   ativação.
 
 Não implemente BERT, q02, q03, q04 ou uma tarefa diferente. Não recupere os
-artefatos experimentais descartados. Não alegue que q01 já foi implementada ou
-validada.
+artefatos experimentais descartados. Não trate o smoke como teste de hipótese.
 
 ## Motivações registradas
 
@@ -69,27 +69,21 @@ swish(x)    = x * sigmoid(x)
 softplus(x) = log(1 + exp(x))
 ```
 
-Os três métodos ainda lançam `NotImplementedError`:
-
-- `ExTensor.sigmoid`;
-- `ExTensor.swish`;
-- `ExTensor.softplus`.
-
-O comando `python -m exercises.q01_activations` termina com código 0, mas apenas
-informa que as ativações precisam ser implementadas. Isso não é evidência de
-sucesso. O comando `python -m exercises.check`, citado no docstring da q01, não
-existe no repositório.
-
-Não há teste automatizado específico para q01. A visualização usa Matplotlib,
-que está instalado no ambiente auditado, mas não consta em `requirements.txt`.
+Os três métodos estão implementados com formulações numericamente estáveis,
+backward analítico e custos instrumentados de 4, 5 e 3 FLOPs por elemento. Há
+testes de valor, extremos, gradientes, grafo e FLOPs em
+`test/test_q01_activations.py`. O comando da q01 gera
+`experiments/plots/q01_activations.png`; Matplotlib consta em
+`requirements.txt`. A antiga referência ao módulo inexistente
+`exercises.check` foi removida.
 
 ### Classificação Adult
 
-A implementação atual usa:
+A implementação mantém ReLU como padrão e permite escolher apenas em V1:
 
 ```text
 z = fc1(x)
-h = ReLU(z)
+h = activation(z)
 logits = fc2(h)
 ```
 
@@ -100,15 +94,14 @@ Configuração observada:
 - full-batch, Adam, `lr=1e-2`, 100 épocas e validação de 20%;
 - tensores no formato `(features, amostras)`;
 - loss de treino antes do `Adam.step` e loss de validação depois do passo;
-- métricas e FLOPs impressos no terminal, sem retorno estruturado;
-- consulta incondicional ao teste no final do `main()`.
+- métricas e FLOPs retornados em histórico estruturado;
+- seeds independentes para split e inicialização do modelo;
+- teste oficial carregado somente com `--evaluate-test`.
 
-A cross-entropy atual compõe `softmax` e `log`. Em logits artificiais extremos,
-uma probabilidade pode arredondar para zero e produzir loss/gradiente não finito.
-Isso ainda não foi observado como resultado de treino Adult. Antes das execuções,
-reproduza o teste de estresse confirmado no protocolo. Se loss ou gradiente não
-for finito, estabilize a loss de modo idêntico para todas as configurações antes
-da baseline; não a altere no meio de uma varredura.
+O estresse confirmou que `softmax` seguido de `log` produzia loss infinita e
+gradientes NaN em logits `+/-1000`. A cross-entropy foi estabilizada uniformemente
+com log-sum-exp antes da baseline. Os casos correto e incorreto agora produzem,
+respectivamente, loss 0 e 2000, com gradientes finitos.
 
 O split atual, com seed 0, contém 26.049 amostras de treino e 6.512 de
 validação. O encoder é ajustado no arquivo oficial de treino inteiro antes do
@@ -122,7 +115,7 @@ O comando abaixo passa atualmente:
 
 ```text
 pytest -q --ignore=test/test_model.py
-62 passed
+98 passed
 ```
 
 Quatro placeholders do Transformer continuam fora do escopo. Não afirme que a
@@ -136,11 +129,9 @@ O contador de FLOPs:
 - não contabiliza operações NumPy do Adam;
 - trata uma operação elementwise não especializada como um FLOP por elemento.
 
-Assim, uma ativação q01 implementada como uma única primitiva receberia uma
-contagem genérica inadequada para comparar sigmoid, swish e softplus. Antes dos
-experimentos, defina e teste uma convenção uniforme de FLOPs de forward para as
-novas primitivas. Relate sempre “FLOPs instrumentados”, nunca tempo, energia,
-memória ou custo completo.
+A convenção confirmada já foi implementada e testada para as três primitivas.
+Relate sempre “FLOPs instrumentados”, nunca tempo, energia, memória ou custo
+completo.
 
 ## Fundamentos que o estudante deve conseguir explicar
 
@@ -359,8 +350,8 @@ que V3 foi aceita pelo professor ou que sua bonificação está garantida.
 - visualização: incluir os gráficos da q01 e registrar Matplotlib em
   `requirements.txt` quando a implementação começar;
 - checkpoints: salvar pesos finais, configuração e hash de cada run;
-- proveniência: o estudante autorizou o commit documental do Passo 0. Commits
-  futuros continuam exigindo autorização explícita, assim como qualquer push;
+- proveniência: o estudante autorizou o Passo 0 e o commit da implementação e
+  smoke de V1. Commits futuros e qualquer push exigem nova autorização;
 - enquadramento de V3: a consulta ao professor não será realizada por decisão do
   estudante; o risco acadêmico permanece documentado.
 
@@ -448,10 +439,14 @@ observações.
    21/07/2026;
 4. confirmar o Portão 0, exceto a recomendação de consulta sobre V3 — concluído
    em 21/07/2026;
-5. inaugurar os novos artefatos experimentais e registrar hipóteses formais;
-6. implementar e validar Sigmoid, Swish e Softplus padrão;
-7. integrar e testar somente V1 na classificação Adult;
-8. fazer smoke de V1 e reproduzir `F-RELU` sem consultar o teste;
+5. inaugurar os novos artefatos experimentais e registrar hipóteses formais —
+   concluído em 21/07/2026;
+6. implementar e validar Sigmoid, Swish e Softplus padrão — concluído em
+   21/07/2026;
+7. integrar e testar somente V1 na classificação Adult — concluído em
+   21/07/2026;
+8. fazer smoke de V1 e reproduzir `F-RELU` sem consultar o teste — concluído em
+   21/07/2026;
 9. executar e encerrar a análise da Variável 1;
 10. somente então implementar, testar, executar e encerrar V2;
 11. somente então implementar, testar, executar e encerrar V3;
@@ -567,12 +562,11 @@ Comandos atualmente válidos:
 ```bash
 pytest -q --ignore=test/test_model.py
 python -m exercises.q01_activations
-python -m exercises.task_binary_classification
+python -m exercises.task_binary_classification --activation relu --epochs 2
 ```
 
-O último comando executa 100 épocas na forma atual; não o use como smoke test
-sem antes criar uma opção curta e inequívoca. Remova ou corrija referências a
-`python -m exercises.check`, pois esse módulo não existe.
+Sem `--epochs 2`, o último módulo preserva o padrão de 100 épocas. Não use
+`--evaluate-test` antes da fase final aprovada.
 
 ## Fontes de verdade
 
@@ -632,5 +626,5 @@ estudante deve conseguir explicar e assumir as decisões finais.
 Neste momento, Adult + q01, baseline, variáveis e protocolo quantitativo estão
 confirmados. A consulta ao professor sobre o enquadramento de V3 foi rejeitada
 pelo estudante e permanece apenas como risco documentado. Nenhuma hipótese
-experimental foi testada e nenhum código de q01 foi implementado. Os novos
-artefatos, configurações e hipóteses de V1 já foram registrados.
+experimental foi testada. A q01, a integração Adult e o smoke de V1 estão
+validados; as runs definitivas, os logs e os checkpoints ainda não começaram.

@@ -2,8 +2,8 @@
 
 The most valuable check here is again a **finite-difference gradient check**:
 ``cross_entropy`` adds no new backward rule — it is built from the engine's
-``softmax``/``log``/``*``/``sum`` — so what we are really verifying is that the
-loss stays wired into the graph and that ``loss.backward()`` produces the exact
+``exp``/``log``/``*``/``sum`` — so what we are really verifying is that the loss
+stays wired into the graph and that ``loss.backward()`` produces the exact
 cross-entropy gradient ``(softmax - one_hot) / N`` at the logits.
 
 The numerical-gradient reference is reused from ``test_engine`` so there is a
@@ -62,6 +62,48 @@ def test_confident_correct_is_near_zero():
     targets = np.array([0, 2])
     loss = cross_entropy(logits, targets)
     assert loss.data < 1e-3
+
+
+def test_extreme_logits_have_finite_value_and_gradient():
+    """Log-sum-exp keeps both confident-correct and confident-wrong rows finite."""
+    logits = cpu.Tensor(
+        np.array([[1000.0, -1000.0], [-1000.0, 1000.0]])
+    )
+
+    logits.zero_grad()
+    correct = cross_entropy(logits, np.array([0, 1]))
+    correct.backward()
+    assert np.isfinite(correct.data)
+    assert np.isclose(correct.data, 0.0)
+    assert np.all(np.isfinite(logits.grad))
+    assert np.allclose(logits.grad, 0.0)
+
+    logits.zero_grad()
+    wrong = cross_entropy(logits, np.array([1, 0]))
+    wrong.backward()
+    assert np.isfinite(wrong.data)
+    assert np.isclose(wrong.data, 2000.0)
+    assert np.all(np.isfinite(logits.grad))
+    assert np.allclose(logits.grad, [[0.5, -0.5], [-0.5, 0.5]])
+
+
+def test_cross_entropy_is_invariant_to_per_row_logit_shift():
+    """Adding a constant to every class in a row changes neither loss nor gradient."""
+    base_data = np.array(
+        [[0.5, -1.0, 2.0], [-3.0, 4.0, 0.25], [1.25, 1.0, -0.75]]
+    )
+    row_shifts = np.array([[1000.0], [-1000.0], [37.0]])
+    targets = np.array([2, 1, 0])
+    base = cpu.Tensor(base_data.copy())
+    shifted = cpu.Tensor(base_data + row_shifts)
+
+    base_loss = cross_entropy(base, targets)
+    shifted_loss = cross_entropy(shifted, targets)
+    base_loss.backward()
+    shifted_loss.backward()
+
+    assert np.isclose(base_loss.data, shifted_loss.data)
+    assert np.allclose(base.grad, shifted.grad, atol=1e-12)
 
 
 # ====================================================================== #

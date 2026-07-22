@@ -22,8 +22,8 @@ HOW TO WORK
 1. Fill in the three methods below (remove the ``raise NotImplementedError``).
 2. Plot them to *see* your functions and — overlaid — the derivative your
    autograd produces:   ``python -m exercises.q01_activations``
-3. Grade yourself; the checker compares your gradients against finite
-   differences and runs the three equations:   ``python -m exercises.check``
+3. Run the focused tests, which compare your gradients against finite
+   differences:   ``pytest -q test/test_q01_activations.py``
 
 TIP: an activation is just another op. Look at how ``tanh`` / ``relu`` are
 written in ``bert_cpu/engine.py``: compute the forward array, build the output
@@ -33,9 +33,27 @@ closure that accumulates ``(local derivative) * out.grad`` into ``self.grad``.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from bert_cpu.engine import Tensor
+
+
+def _stable_sigmoid(values: np.ndarray) -> np.ndarray:
+    """Evaluate sigmoid without overflowing for large negative inputs.
+
+    For non-negative values, ``exp(-x)`` is safe.  For negative values we use
+    the equivalent ``exp(x) / (1 + exp(x))``, so the exponential never receives
+    a large positive argument.
+    """
+    result = np.empty_like(values)
+    non_negative = values >= 0.0
+
+    result[non_negative] = 1.0 / (1.0 + np.exp(-values[non_negative]))
+    exp_x = np.exp(values[~non_negative])
+    result[~non_negative] = exp_x / (1.0 + exp_x)
+    return result
 
 
 class ExTensor(Tensor):
@@ -43,18 +61,57 @@ class ExTensor(Tensor):
 
     def sigmoid(self) -> Tensor:
         """Logistic sigmoid, 1 / (1 + e^{-x})."""
-        # TODO: 
-        raise NotImplementedError("implement ExTensor.sigmoid")
+        sigmoid = _stable_sigmoid(self.data)
+        out = Tensor(
+            data=sigmoid,
+            _children=(self,),
+            _op="sigmoid",
+            requires_grad=self.requires_grad,
+        )
+
+        def _backward() -> None:
+            if self.requires_grad:
+                self.grad += sigmoid * (1.0 - sigmoid) * out.grad
+
+        out._backward = _backward
+        return out
 
     def swish(self) -> Tensor:
         """Swish / SiLU, x * sigmoid(x)."""
-        # TODO: 
-        raise NotImplementedError("implement ExTensor.swish")
+        sigmoid = _stable_sigmoid(self.data)
+        out = Tensor(
+            data=self.data * sigmoid,
+            _children=(self,),
+            _op="swish",
+            requires_grad=self.requires_grad,
+        )
+
+        def _backward() -> None:
+            if self.requires_grad:
+                local_derivative = sigmoid + self.data * sigmoid * (1.0 - sigmoid)
+                self.grad += local_derivative * out.grad
+
+        out._backward = _backward
+        return out
 
     def softplus(self) -> Tensor:
         """Softplus, ln(1 + e^{x}) (a smooth ReLU)."""
-        # TODO: 
-        raise NotImplementedError("implement ExTensor.softplus")
+        # logaddexp(0, x) is algebraically equal to log(1 + exp(x)), while
+        # remaining finite for large positive inputs.
+        out = Tensor(
+            data=np.logaddexp(0.0, self.data),
+            _children=(self,),
+            _op="softplus",
+            requires_grad=self.requires_grad,
+        )
+        sigmoid = _stable_sigmoid(self.data)
+
+        def _backward() -> None:
+            if self.requires_grad:
+                self.grad += sigmoid * out.grad
+
+        out._backward = _backward
+        return out
 
 
 # --------------------------------------------------------------------- #
@@ -84,7 +141,7 @@ EQUATIONS = [
 # method is just a function of a tensor).
 
 
-def plot_activations(path: str = "exercises/activation_plots.png") -> None:
+def plot_activations(path: str = "experiments/plots/q01_activations.png") -> None:
     """Plot each activation and, overlaid, the derivative your autograd gives.
 
     The derivative curve is *not* hand-coded here: for an elementwise function,
@@ -111,6 +168,7 @@ def plot_activations(path: str = "exercises/activation_plots.png") -> None:
         ax.axvline(0, color="gray", lw=0.5)
         ax.legend()
     fig.tight_layout()
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=110)
     print(f"saved {path}")
 
