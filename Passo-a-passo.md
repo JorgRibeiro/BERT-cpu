@@ -8,10 +8,11 @@ ficam em `AGENTS.md`.
 - Branch: `q01-ativacoes-adult`, criada a partir da `main`.
 - q04 foi abandonada antes de implementação ou experimento.
 - Adult, q01, baseline, variáveis e protocolo estão confirmados.
-- Artefatos novos, configuração e hipóteses de V1 estão registrados.
-- q01 e a integração Adult de V1 passaram nos testes e no smoke de duas épocas.
-- O executor de logs/checkpoints passou nos testes e foi autorizado para commit.
-- Nenhuma run de 100 épocas ou conclusão experimental foi produzida.
+- A V1 tem 12 runs primárias e uma repetição determinística válidas.
+- H1a/H1b ficaram inconclusivas e H1c foi sustentada.
+- Tabela e três gráficos são regeneráveis por script; 123 testes passam.
+- O teste oficial não foi consultado e os artefatos foram versionados no commit
+  de fechamento da V1.
 - Não fazer commit ou push sem autorização.
 
 ## O que vamos testar
@@ -85,7 +86,7 @@ python -m exercises.q01_activations
 pytest -q --ignore=test/test_model.py
 ```
 
-### 3. Executar a Variável 1
+### 3. Executar a Variável 1 — concluído localmente em 21/07/2026
 
 - [x] Tornar a mesma `AdultMLP` configurável para as quatro ativações.
 - [x] Separar o split da seed de inicialização.
@@ -94,10 +95,12 @@ pytest -q --ignore=test/test_model.py
 - [x] Preparar logs JSONL, checkpoints NPZ, hashes e travas contra duplicação.
 - [x] Validar o executor com testes e smoke isolado.
 - [x] Versionar o executor após autorização.
-- Executar e reproduzir `F-RELU` primeiro.
-- Executar as quatro configurações com seeds `0`, `1` e `2`.
-- Salvar resultados e checkpoints.
-- Analisar as hipóteses e encerrar V1 antes de continuar.
+- [x] Executar e reproduzir `F-RELU` primeiro.
+- [x] Executar as quatro configurações com seeds `0`, `1` e `2`.
+- [x] Salvar resultados e checkpoints.
+- [x] Analisar H1a, H1b e H1c.
+- [x] Gerar tabela e gráficos reproduzíveis.
+- [x] Versionar o fechamento após autorização.
 
 ### 4. Executar a Variável 2
 
@@ -138,5 +141,5 @@ Somente depois de fechar V2:
 
 ## Próximo passo
 
-Executar a `F-RELU` definitiva e sua reprodução antes das variantes. Não
-implementar V2 ou V3.
+Revisar e compreender as evidências da V1. Depois, mediante nova solicitação,
+preparar a implementação da V2; não consultar o teste oficial nem iniciar V3.

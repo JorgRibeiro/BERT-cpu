@@ -34,4 +34,5 @@ por elemento é menor.
 - H1c: sustentada se `F-RELU` tiver FLOPs estritamente menores que cada função
   suave na mesma janela; refutada caso contrário.
 
-O teste oficial não será consultado nesta etapa. Ainda não há resultados.
+O teste oficial não foi consultado nesta etapa. Este arquivo preserva o registro
+pré-experimental; os resultados medidos estão em `experiments/analysis.md`.

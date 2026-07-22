@@ -38,3 +38,74 @@
 - Proveniência remota: `origin/q01-ativacoes-adult` aponta para `eeed1f2` e o
   reflog registra `update by push`; nenhum comando de push foi executado pelo
   agente nesta etapa.
+
+## 21/07/2026 — primeira run científica da baseline
+
+- Objetivo: executar `F-RELU-s0-r1` por 100 épocas, sem acessar o teste.
+- Contribuição da IA: execução, checagem do log, checkpoint, hashes, FLOPs e
+  resumo descritivo da curva e dos diagnósticos.
+- Verificação: status `completed_valid`, 100 épocas, checkpoint íntegro, seis
+  diagnósticos e uma única linha em `results.csv`.
+- Decisão do estudante: primeira run autorizada. Interpretação ainda parcial;
+  repetição determinística e demais seeds pendentes.
+
+## 21/07/2026 — reprodução da baseline
+
+- Objetivo: repetir `F-RELU` com seed 0 sem mudar o contexto experimental.
+- Contribuição da IA: execução e comparação independente das épocas,
+  diagnósticos, pesos finais, métricas, hashes e FLOPs.
+- Verificação: r1 e r2 foram exatamente iguais; ambos os artefatos estão
+  íntegros e o teste oficial não foi carregado.
+- Decisão do estudante: repetição autorizada; seeds 1 e 2 ainda pendentes.
+
+## 21/07/2026 — conclusão da baseline ReLU
+
+- Objetivo: executar as seeds 1 e 2 e consolidar as três seeds primárias.
+- Contribuição da IA: execuções paralelas, validação dos quatro artefatos e
+  cálculo das métricas agregadas da baseline.
+- Verificação: média de validação 85,0481%, desvio-padrão amostral 0,1538 p.p.,
+  FLOPs idênticos e nenhuma consulta ao teste oficial.
+- Decisão do estudante: seeds 1 e 2 autorizadas conjuntamente; variantes ainda
+  não executadas. As próximas ativações devem ser sempre analisadas com as três
+  seeds e incluir losses de treino e validação.
+
+## 21/07/2026 — variante Sigmoid
+
+- Objetivo: executar `F-SIGMOID` nas seeds 0, 1 e 2 e comparar com ReLU.
+- Contribuição da IA: execução do bloco, validação dos artefatos, análise de
+  losses, acurácias, saturação, FLOPs e aplicação do critério de H1b.
+- Verificação: sete runs totais válidas, Sigmoid 0,3020 p.p. abaixo da ReLU em
+  média, saturação final média de 0,5444% e teste oficial não carregado.
+- Interpretação: H1b inconclusiva porque a diferença não atingiu 0,5 p.p.; H1c
+  tem apenas evidência parcial até concluir Swish e Softplus.
+
+## 21/07/2026 — variante Swish
+
+- Objetivo: executar `F-SWISH` nas seeds 0, 1 e 2 e comparar com as funções já
+  concluídas.
+- Contribuição da IA: execução do bloco, validação dos artefatos e análise de
+  losses, acurácias, derivadas locais, FLOPs e critérios de H1a/H1c.
+- Verificação: dez runs totais válidas, Swish 0,0870 p.p. acima da ReLU em
+  média, 0,9895% mais FLOPs e teste oficial não carregado.
+- Interpretação: Swish é a melhor suave parcial, mas H1a permanece pendente até
+  executar Softplus; H1c segue com evidência parcial.
+
+## 21/07/2026 — variante Softplus e síntese da V1
+
+- Objetivo: executar `F-SOFTPLUS` nas três seeds e consolidar a Variável 1.
+- Contribuição da IA: execução, validação dos 13 artefatos, análise de losses,
+  acurácias, derivadas, FLOPs, retorno, hipóteses e Pareto.
+- Verificação: Softplus 0,1638 p.p. abaixo da ReLU e 0,4948% mais cara; todas
+  as runs válidas e teste oficial não carregado.
+- Interpretação: H1a e H1b inconclusivas; H1c sustentada. ReLU teve o melhor
+  retorno por FLOP e Swish a maior acurácia média.
+
+## 21/07/2026 — gráficos e revisão final da V1
+
+- Objetivo: tornar tabela e gráficos regeneráveis a partir dos dados brutos.
+- Contribuição da IA: gerador, três gráficos, tabela agregada, testes e revisão
+  independente dos 13 logs e das conclusões.
+- Verificação: inspeção visual corrigiu sobreposição de título/legenda; três
+  testes novos e 123 testes permitidos passaram.
+- Limites preservados: repetição ReLU excluída das médias, três seeds não
+  tratadas como intervalo de confiança e teste oficial não acessado.

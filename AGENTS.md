@@ -18,9 +18,10 @@ o estudante confirmou as três variáveis, sua ordem, hipóteses, controles,
 métricas, repetições e regras de análise descritas abaixo. A única recomendação
 não adotada foi consultar o professor sobre o enquadramento acadêmico de V3; a
 variável permanece selecionada, com esse risco documentado. Ainda não houve
-treino experimental de 100 épocas nem resultado científico. A q01, a integração
-de V1, o smoke de duas épocas e o executor persistente foram validados em
-21/07/2026. O estudante autorizou a versão do executor antes das runs completas.
+consulta ao teste oficial. A Variável 1 foi executada e analisada localmente em
+21/07/2026: 12 runs primárias, uma repetição determinística, tabela agregada e
+três gráficos reproduzíveis. Esses artefatos foram versionados no commit de
+fechamento da V1. Não inicie V2 sem uma nova solicitação do estudante.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
@@ -116,7 +117,7 @@ O comando abaixo passa atualmente:
 
 ```text
 pytest -q --ignore=test/test_model.py
-120 passed
+123 passed
 ```
 
 Quatro placeholders do Transformer continuam fora do escopo. Não afirme que a
@@ -146,7 +147,20 @@ completo.
 - bloqueia variantes até concluir e reproduzir a baseline ReLU.
 
 Os diagnósticos usam somente a validação fixa e ficam fora da janela de FLOPs.
-Nenhum artefato científico foi produzido ainda.
+Foram produzidas 13 runs científicas válidas, todas sem consulta ao teste.
+
+### Resultado da Variável 1
+
+- acurácia média: Swish 85,1351%, ReLU 85,0481%, Softplus 84,8843% e
+  Sigmoid 84,7461%;
+- melhor retorno por FLOP: ReLU; maior acurácia média: Swish;
+- H1a e H1b inconclusivas; H1c sustentada;
+- Pareto pelas médias: ReLU e Swish; Sigmoid e Softplus dominadas;
+- gráficos e tabela regeneráveis com `python -m experiments.plot_v1`.
+
+O desvio-padrão usa somente três seeds e não é intervalo de confiança. Como o
+split é fixo, ele descreve variação de inicialização, não de amostragem. A
+fronteira de Pareto usa as médias observadas e não prova significância.
 
 ## Fundamentos que o estudante deve conseguir explicar
 
@@ -466,7 +480,8 @@ observações.
    21/07/2026;
 9. preparar e validar logs, checkpoints e travas do executor — concluído
    e versionado em 21/07/2026;
-10. executar e encerrar a análise da Variável 1;
+10. executar e encerrar a análise da Variável 1 — concluído e versionado em
+    21/07/2026;
 11. somente então implementar, testar, executar e encerrar V2;
 12. somente então implementar, testar, executar e encerrar V3;
 13. realizar a avaliação de teste na fase aprovada;
@@ -642,9 +657,8 @@ estudante deve conseguir explicar e assumir as decisões finais.
 - 12 requisitos do vídeo ligados a evidências verificáveis;
 - repositório e vídeo de até 20 minutos prontos para entrega.
 
-Neste momento, Adult + q01, baseline, variáveis e protocolo quantitativo estão
-confirmados. A consulta ao professor sobre o enquadramento de V3 foi rejeitada
-pelo estudante e permanece apenas como risco documentado. Nenhuma hipótese
-experimental foi testada. A q01, a integração Adult e o smoke de V1 estão
-validados. O executor persistente está validado localmente; as runs definitivas
-e seus artefatos ainda não começaram.
+Neste momento, a Variável 1 está concluída localmente, sem teste oficial: 13
+runs válidas, hipóteses avaliadas, tabela e três gráficos reproduzíveis. Os
+artefatos ainda não foram versionados. A consulta ao professor sobre V3 foi
+rejeitada pelo estudante e permanece como risco. Não implemente V2 antes do
+commit autorizado de fechamento da V1.
