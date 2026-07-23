@@ -25,17 +25,29 @@ removeu fontes de erro e garantiu uma comparação controlada para a V1.
 - As curvas, seeds, dispersão e Pareto são regeneráveis por
   `python -m experiments.plot_v1`.
 
+## Highlights — preparação da V2
+
+- `beta` é uma constante fixa, não um parâmetro aprendido.
+- O forward usa `logaddexp(0, beta*z) / beta` e o backward usa
+  `sigmoid(beta*z)`.
+- A Softplus antiga permanece em 3 FLOPs por elemento; Softplus-beta usa 5 em
+  todos os níveis.
+- `S-BETA-1` será uma nova execução: igualdade matemática não torna commits,
+  caminhos e instrumentações experimentais idênticos.
+- Quatro smokes validaram o executor e os custos; eles não testam H2.
+- Estes são fatos de implementação e plano; ainda não há resultado da V2.
+
 | Item | Estado | Evidência atual |
 |---:|---|---|
 | 1. Uso de IA | Parcial | `experiments/ai_usage.md` |
 | 2. Tarefa Adult | Parcial | `AGENTS.md` e configuração de V1 |
 | 3. Baseline | Concluído | ReLU: três seeds e repetição exata da seed 0; teste reservado |
-| 4. Variáveis e controles | Parcial | `AGENTS.md` e `experiments/hypotheses.md` |
-| 5. Formulação | Parcial | `exercises/q01_activations.py`, testes e gráfico da q01 |
+| 4. Variáveis e controles | Parcial | `AGENTS.md`, `hypotheses.md` e protocolos V1/V2 |
+| 5. Formulação | Parcial | `q01_activations.py` e testes de Softplus/Softplus-beta |
 | 6. Arquitetura e treino | Parcial | `exercises/task_binary_classification.py` e testes de integração |
-| 7. Protocolo | Parcial | `AGENTS.md`, configuração e `experiments/run_v1.py` |
+| 7. Protocolo | Parcial | `run_v2.py`, `run_v2_all.py`, configuração e protocolo |
 | 8. Resultados | Parcial | V1: tabela, curvas e métricas finais de 13 runs |
 | 9. Desempenho/FLOPs | Parcial | `v1_accuracy_vs_flops.png`: ReLU/Swish na Pareto |
 | 10. Hipóteses/resultados | Parcial | `analysis.md`: H1a/H1b inconclusivas; H1c sustentada |
 | 11. Dificuldades | Parcial | estabilidade da loss e correção vetor `@` vetor em `experiments/ai_usage.md` |
-| 12. Reprodução | Parcial | `plot_v1.py`, `v1_summary.csv`, 123 testes e fechamento da V1 versionado |
+| 12. Reprodução | Parcial | V1 versionada; V2 com lote seco, 4 smokes e 196 testes |

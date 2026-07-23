@@ -35,6 +35,7 @@ from exercises.q01_activations import ExTensor
 
 
 ACTIVATIONS = ("relu", "sigmoid", "swish", "softplus")
+SUPPORTED_ACTIVATIONS = ACTIVATIONS + ("softplus_beta",)
 
 
 # ============================================================================ #
@@ -54,13 +55,32 @@ class AdultMLP(nn.Module):
         n_features: int,
         hidden: int = 64,
         activation: str = "relu",
+        activation_beta: float | None = None,
     ) -> None:
-        if activation not in ACTIVATIONS:
-            choices = ", ".join(ACTIVATIONS)
+        if activation not in SUPPORTED_ACTIVATIONS:
+            choices = ", ".join(SUPPORTED_ACTIVATIONS)
             raise ValueError(f"unknown activation {activation!r}; choose one of: {choices}")
+        if activation == "softplus_beta":
+            if activation_beta is None:
+                raise ValueError("softplus_beta requires activation_beta")
+            if isinstance(activation_beta, (bool, np.bool_)) or not np.isscalar(
+                activation_beta
+            ):
+                raise ValueError("activation_beta must be a finite positive scalar")
+            try:
+                activation_beta = float(activation_beta)
+            except (TypeError, ValueError, OverflowError) as error:
+                raise ValueError(
+                    "activation_beta must be a finite positive scalar"
+                ) from error
+            if not np.isfinite(activation_beta) or activation_beta <= 0.0:
+                raise ValueError("activation_beta must be a finite positive scalar")
+        elif activation_beta is not None:
+            raise ValueError("activation_beta is only valid with softplus_beta")
         self.n_features = n_features
         self.hidden = hidden
         self.activation = activation
+        self.activation_beta = activation_beta
         self.fc1 = nn.Linear(n_features, hidden)
         self.fc2 = nn.Linear(hidden, 2)
 
@@ -71,7 +91,9 @@ class AdultMLP(nn.Module):
             return ExTensor.sigmoid(z)
         if self.activation == "swish":
             return ExTensor.swish(z)
-        return ExTensor.softplus(z)
+        if self.activation == "softplus":
+            return ExTensor.softplus(z)
+        return ExTensor.softplus_beta(z, self.activation_beta)
 
     def forward(self, x: cpu.Tensor) -> cpu.Tensor:
         """Return logits shaped ``(2, batch)`` without detaching ``fc1``."""
@@ -83,10 +105,17 @@ def build_model(
     n_features: int,
     activation: str = "relu",
     model_seed: int = 0,
+    *,
+    activation_beta: float | None = None,
 ) -> AdultMLP:
     """Seed immediately before model construction, independently of the split."""
     cpu.set_seed(model_seed)
-    return AdultMLP(n_features, hidden=64, activation=activation)
+    return AdultMLP(
+        n_features,
+        hidden=64,
+        activation=activation,
+        activation_beta=activation_beta,
+    )
 
 
 def parameter_count(model: AdultMLP) -> int:
@@ -180,6 +209,7 @@ class ExperimentResult:
     model_seed: int
     split_seed: int
     test_accuracy: float | None = None
+    activation_beta: float | None = None
 
 
 def train(
@@ -267,6 +297,7 @@ def train(
 def run_experiment(
     *,
     activation: str = "relu",
+    activation_beta: float | None = None,
     epochs: int = 100,
     model_seed: int = 0,
     split_seed: int = 0,
@@ -289,6 +320,7 @@ def run_experiment(
         train_dataset.n_features,
         activation=activation,
         model_seed=model_seed,
+        activation_beta=activation_beta,
     )
 
     if verbose:
@@ -302,6 +334,7 @@ def run_experiment(
         )
         print(
             f"Model: Linear({train_dataset.n_features}, 64) -> {activation}"
+            f"{'' if activation_beta is None else f'(beta={activation_beta:g})'}"
             f" -> Linear(64, 2)   parameters = {parameter_count(model):,}"
             f"   model seed = {model_seed}\n"
         )
@@ -338,6 +371,7 @@ def run_experiment(
         model=model,
         training=training,
         activation=activation,
+        activation_beta=activation_beta,
         model_seed=model_seed,
         split_seed=split_seed,
         test_accuracy=test_accuracy,
@@ -346,9 +380,10 @@ def run_experiment(
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Train the Adult MLP with one Variable 1 activation.",
+        description="Train the Adult MLP with a q01 activation configuration.",
     )
-    parser.add_argument("--activation", choices=ACTIVATIONS, default="relu")
+    parser.add_argument("--activation", choices=SUPPORTED_ACTIVATIONS, default="relu")
+    parser.add_argument("--activation-beta", type=float)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--model-seed", type=int, default=0)
     parser.add_argument("--split-seed", type=int, default=0)
@@ -367,6 +402,7 @@ def main(argv: Sequence[str] | None = None) -> ExperimentResult:
     args = _build_parser().parse_args(argv)
     return run_experiment(
         activation=args.activation,
+        activation_beta=args.activation_beta,
         epochs=args.epochs,
         model_seed=args.model_seed,
         split_seed=args.split_seed,

@@ -122,6 +122,8 @@ def _forward_flops(op: str, out_data: np.ndarray, children) -> int:
         return 5 * n
     if op == "softplus":                           # exp + add + log
         return 3 * n
+    if op == "softplus_beta":                      # beta*x + exp + add + log + /beta
+        return 5 * n
     return n                                       # elementwise: +, *, **k, exp, log, ...
 
 

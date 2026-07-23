@@ -10,9 +10,11 @@ ficam em `AGENTS.md`.
 - Adult, q01, baseline, variáveis e protocolo estão confirmados.
 - A V1 tem 12 runs primárias e uma repetição determinística válidas.
 - H1a/H1b ficaram inconclusivas e H1c foi sustentada.
-- Tabela e três gráficos são regeneráveis por script; 123 testes passam.
+- Tabela e três gráficos da V1 são regeneráveis; 196 testes permitidos passam.
 - O teste oficial não foi consultado e os artefatos foram versionados no commit
   de fechamento da V1.
+- A infraestrutura da V2 e quatro smokes estão validados; ainda não há runs
+  científicas da V2.
 - Não fazer commit ou push sem autorização.
 
 ## O que vamos testar
@@ -102,15 +104,18 @@ pytest -q --ignore=test/test_model.py
 - [x] Gerar tabela e gráficos reproduzíveis.
 - [x] Versionar o fechamento após autorização.
 
-### 4. Executar a Variável 2
+### 4. Executar a Variável 2 — em andamento
 
 Somente depois de fechar V1:
 
-- implementar Softplus-beta;
-- testar valores, derivadas e FLOPs;
-- fazer smoke test;
-- executar os quatro valores de `beta` nas três seeds;
-- analisar e encerrar V2.
+- [x] registrar protocolo, níveis e hipótese antes das runs;
+- [x] implementar Softplus-beta sem alterar a Softplus da V1;
+- [x] testar valores, derivadas, integração e FLOPs;
+- [x] preparar e validar executor unitário, lote e análise;
+- [x] fazer smoke das quatro configurações;
+- [ ] versionar a infraestrutura após autorização;
+- [ ] executar os quatro valores de `beta` nas três seeds;
+- [ ] analisar e encerrar V2.
 
 ### 5. Executar a Variável 3
 
@@ -141,5 +146,5 @@ Somente depois de fechar V2:
 
 ## Próximo passo
 
-Revisar e compreender as evidências da V1. Depois, mediante nova solicitação,
-preparar a implementação da V2; não consultar o teste oficial nem iniciar V3.
+Solicitar autorização para o commit pré-runs. Depois do commit, executar as 12
+runs da V2. Não consultar o teste oficial nem iniciar V3.

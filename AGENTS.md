@@ -21,7 +21,10 @@ variável permanece selecionada, com esse risco documentado. Ainda não houve
 consulta ao teste oficial. A Variável 1 foi executada e analisada localmente em
 21/07/2026: 12 runs primárias, uma repetição determinística, tabela agregada e
 três gráficos reproduzíveis. Esses artefatos foram versionados no commit de
-fechamento da V1. Não inicie V2 sem uma nova solicitação do estudante.
+fechamento da V1. Em 23/07/2026, o estudante solicitou o início da V2. Sua
+infraestrutura pré-experimental foi implementada e validada localmente, com
+quatro smokes de duas épocas. Nenhuma run científica da V2 foi executada; o
+próximo portão é o commit pré-runs, que exige autorização do estudante.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
@@ -59,11 +62,11 @@ artefatos experimentais descartados. Não trate o smoke como teste de hipótese.
   `backward`, dinâmica de treinamento e desempenho medido. Não basta trocar o
   nome da função no código e apresentar a acurácia final.
 
-## Estado técnico observado em 21/07/2026
+## Estado técnico observado até 23/07/2026
 
 ### q01
 
-`ExTensor` deve acrescentar três ativações ao engine:
+`ExTensor` acrescenta três ativações básicas ao engine:
 
 ```text
 sigmoid(x)  = 1 / (1 + exp(-x))
@@ -79,9 +82,16 @@ testes de valor, extremos, gradientes, grafo e FLOPs em
 `requirements.txt`. A antiga referência ao módulo inexistente
 `exercises.check` foi removida.
 
+Para a V2, `softplus_beta(x, beta)` foi acrescentada como operação separada,
+com `beta` positivo e fixo, forward estável
+`logaddexp(0, beta*x) / beta`, derivada `sigmoid(beta*x)` e custo instrumentado
+de 5 FLOPs por elemento. O caminho antigo `softplus` permanece inalterado para
+preservar a V1.
+
 ### Classificação Adult
 
-A implementação mantém ReLU como padrão e permite escolher apenas em V1:
+A implementação mantém ReLU como padrão. A V1 escolhe a família da ativação; a
+V2 usa explicitamente `activation="softplus_beta"` e um `activation_beta`:
 
 ```text
 z = fc1(x)
@@ -117,7 +127,7 @@ O comando abaixo passa atualmente:
 
 ```text
 pytest -q --ignore=test/test_model.py
-123 passed
+196 passed
 ```
 
 Quatro placeholders do Transformer continuam fora do escopo. Não afirme que a
@@ -131,7 +141,8 @@ O contador de FLOPs:
 - não contabiliza operações NumPy do Adam;
 - trata uma operação elementwise não especializada como um FLOP por elemento.
 
-A convenção confirmada já foi implementada e testada para as três primitivas.
+A convenção confirmada já foi implementada e testada para as primitivas da q01
+e para Softplus-beta.
 Relate sempre “FLOPs instrumentados”, nunca tempo, energia, memória ou custo
 completo.
 
@@ -148,6 +159,18 @@ completo.
 
 Os diagnósticos usam somente a validação fixa e ficam fora da janela de FLOPs.
 Foram produzidas 13 runs científicas válidas, todas sem consulta ao teste.
+
+### Preparação da V2
+
+`experiments/run_v2.py` executa uma configuração por vez e
+`experiments/run_v2_all.py` fixa a ordem das 12 runs. O validador confere
+configuração, beta, seed, métricas, FLOPs, log e checkpoint antes de aceitar uma
+run. `experiments/plot_v2.py` já prepara tabela, três gráficos e a decisão de H2.
+
+Os quatro níveis passaram em smokes isolados de duas épocas, com
+`850.711.121` FLOPs por época e `94.632.384` FLOPs de inferência na validação.
+Os smokes não entraram em `results.csv`, não avaliaram o teste oficial e não são
+evidência de H2. A infraestrutura ainda não foi versionada.
 
 ### Resultado da Variável 1
 
@@ -482,7 +505,8 @@ observações.
    e versionado em 21/07/2026;
 10. executar e encerrar a análise da Variável 1 — concluído e versionado em
     21/07/2026;
-11. somente então implementar, testar, executar e encerrar V2;
+11. implementar, testar, executar e encerrar V2 — preparação pré-runs concluída
+    localmente em 23/07/2026; commit, 12 runs e análise pendentes;
 12. somente então implementar, testar, executar e encerrar V3;
 13. realizar a avaliação de teste na fase aprovada;
 14. realizar a análise conjunta de trade-offs;
@@ -579,7 +603,8 @@ confirmação do estudante.
 ## Validação mínima antes de qualquer treino completo
 
 - testes de valor contra NumPy em domínio regular e extremo;
-- gradient check por diferenças finitas de sigmoid, swish e softplus;
+- gradient check por diferenças finitas de sigmoid, swish, softplus e
+  Softplus-beta;
 - teste de acumulação de gradiente e `requires_grad=False`;
 - teste de estabilidade: nenhuma saída/derivada NaN ou Inf em casos definidos;
 - comparação visual opcional das funções e derivadas;
@@ -657,8 +682,9 @@ estudante deve conseguir explicar e assumir as decisões finais.
 - 12 requisitos do vídeo ligados a evidências verificáveis;
 - repositório e vídeo de até 20 minutos prontos para entrega.
 
-Neste momento, a Variável 1 está concluída localmente, sem teste oficial: 13
-runs válidas, hipóteses avaliadas, tabela e três gráficos reproduzíveis. Os
-artefatos ainda não foram versionados. A consulta ao professor sobre V3 foi
-rejeitada pelo estudante e permanece como risco. Não implemente V2 antes do
-commit autorizado de fechamento da V1.
+Neste momento, a Variável 1 está concluída e versionada no commit `07243dc`,
+sem teste oficial: 13 runs válidas, hipóteses avaliadas, tabela e três gráficos
+reproduzíveis. A preparação da V2 está validada localmente com quatro smokes,
+mas ainda não foi versionada e não possui runs científicas. Aguarde autorização
+para o commit pré-runs. A consulta ao professor sobre V3 foi rejeitada pelo
+estudante e permanece como risco. Não implemente V3 antes de encerrar V2.

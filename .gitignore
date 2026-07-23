@@ -13,3 +13,7 @@ dist/
 # Runtime-only locks and run-ID reservations
 experiments/results.csv.lock
 experiments/.run_reservations/
+experiments/v2/results.csv.lock
+experiments/v2/.run_reservations/
+experiments/v2/logs/smoke/
+experiments/v2/checkpoints/smoke/

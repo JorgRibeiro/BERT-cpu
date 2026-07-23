@@ -109,3 +109,19 @@
   testes novos e 123 testes permitidos passaram.
 - Limites preservados: repetição ReLU excluída das médias, três seeds não
   tratadas como intervalo de confiança e teste oficial não acessado.
+
+## 23/07/2026 — preparação da Variável 2
+
+- Objetivo: implementar e preparar o estudo da curvatura da Softplus antes das
+  novas runs.
+- Contribuição da IA: protocolo e H2, Softplus-beta estável, backward, FLOPs,
+  integração na AdultMLP, executor unitário, lote sequencial, análise e testes.
+- Arquivos principais: `bert_cpu/engine.py`, `exercises/q01_activations.py`,
+  `exercises/task_binary_classification.py`, configuração/protocolo da V2 e
+  testes correspondentes.
+- Verificação: 196 testes permitidos e 73 testes focados passaram. Os quatro
+  smokes concluíram duas épocas, custos e checkpoints esperados; o dry-run
+  planejou 12 runs. Revisões independentes encontraram e ajudaram a fechar as
+  travas de retomada e artefatos temporários.
+- Decisão do estudante: início da V2 autorizado. Nenhuma run científica,
+  avaliação no teste oficial, commit ou push foi realizado nesta etapa.

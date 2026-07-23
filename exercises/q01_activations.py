@@ -113,6 +113,38 @@ class ExTensor(Tensor):
         out._backward = _backward
         return out
 
+    def softplus_beta(self, beta: float) -> Tensor:
+        """Softplus with fixed positive curvature ``beta``.
+
+        ``logaddexp`` preserves the stable value of
+        ``log(1 + exp(beta*x)) / beta``.  The constant ``beta`` is not a
+        trainable parameter, and its local derivative is ``sigmoid(beta*x)``.
+        """
+        if isinstance(beta, (bool, np.bool_)) or not np.isscalar(beta):
+            raise ValueError("beta must be a finite positive scalar")
+        try:
+            beta_value = float(beta)
+        except (TypeError, ValueError, OverflowError) as error:
+            raise ValueError("beta must be a finite positive scalar") from error
+        if not np.isfinite(beta_value) or beta_value <= 0.0:
+            raise ValueError("beta must be a finite positive scalar")
+
+        scaled = beta_value * self.data
+        out = Tensor(
+            data=np.logaddexp(0.0, scaled) / beta_value,
+            _children=(self,),
+            _op="softplus_beta",
+            requires_grad=self.requires_grad,
+        )
+        sigmoid = _stable_sigmoid(scaled)
+
+        def _backward() -> None:
+            if self.requires_grad:
+                self.grad += sigmoid * out.grad
+
+        out._backward = _backward
+        return out
+
 
 # --------------------------------------------------------------------- #
 # The three GIVEN equations, of increasing complexity. You do not edit
