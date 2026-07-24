@@ -5,33 +5,37 @@ Atualizado em 24/07/2026.
 ## Agora
 
 - Branch: `q01-ativacoes-adult`.
-- Infraestrutura da V3: commit `2c15768`.
-- Fase: V3 encerrada e versionada com autorização.
+- Fase: fechamento experimental e materiais de entrega versionados.
 - Nenhum push foi executado pelo agente.
 
-## Evidência da V3
+## Evidência atual
 
-- Nove runs válidas: L1, L2 e L3 nas seeds 0, 1 e 2.
-- Validação média: 84,5414%, 84,6744% e 84,6796%.
-- Custo: 2,6107501, 84,0291601 e 154,4654481 GFLOPs/run.
-- H3a não contradita; H3b e H3c sustentadas; H3d inconclusiva.
-- Tabela, análise e três gráficos estão em `experiments/v3/`.
-- Checkpoints, hashes, equivalência afim e ausência de Identity foram validados.
-- As nove runs passaram no dry-run estrito e 269 testes permitidos passaram.
-- O teste oficial não foi avaliado.
+- ID: `OFFICIAL-185889b9b944304ba514`.
+- 33 checkpoints primários, 11 configurações e três seeds.
+- No avaliador oficial: um load controlado do teste, um forward por checkpoint
+  e nenhum treinamento.
+- O gerador da análise conjunta não carrega o teste nem treina.
+- Pareto: L1, L2, ReLU e beta 5.
+- Melhor retorno: L1; sob orçamento da ReLU: ReLU.
+- Melhor validação: beta 5; melhor teste descritivo: beta 2.
+- Rota segura validada com seis testes focados e verificação dos artefatos.
+- Após o commit, avaliador e análise conjunta somaram 17 testes focados
+  aprovados.
+- A suíte ampla alcançou 286 testes, mas acessa o loader do teste para conferir
+  schema e executa treinos curtos; não gerou métricas oficiais nem mudou decisões.
 
 ## Pendências
 
-1. Confirmar o início da avaliação final no teste.
-2. Fazer a análise conjunta.
-3. Preparar a entrega.
+1. O estudante revisar o README e o roteiro.
+2. Gravar o vídeo e inserir seu link.
+3. Preparar o envio no Classroom e autorizar eventual push separadamente.
 
 ## Limites
 
 - Smoke não é resultado experimental.
 - O split é fixo; três seeds medem variação de inicialização.
 - A ponte ReLU–L2 atravessa commits e kernels diferentes.
-- O teste oficial continua reservado para a fase final.
+- O teste não pode ser usado para alterar hipóteses ou selecionar novas runs.
 - O risco acadêmico de V3 permanece registrado.
 
-Detalhes: `experiments/v3/protocol.md` e `experiments/v3/analysis.md`.
+Detalhes: `experiments/final_evaluation/` e `experiments/final_analysis/`.

@@ -1,5 +1,8 @@
 # Evidências para o vídeo
 
+Roteiro cronometrado: `experiments/video_script.md`. A gravação e a revisão
+final do estudante permanecem pendentes.
+
 ## Highlights — preparação técnica da V1
 
 Antes da investigação de 100 épocas, foi necessário:
@@ -70,17 +73,49 @@ removeu fontes de erro e garantiu uma comparação controlada para a V1.
   e trouxeram ganho pequeno com forte aumento de custo.
 - Evidência: `experiments/v3/analysis.md`, `summary.csv` e três gráficos.
 
+## Avaliação oficial
+
+- Foram avaliados os 33 checkpoints primários; a repetição ReLU foi excluída.
+- No fluxo controlado do avaliador, o teste foi carregado uma vez, com 16.281
+  amostras, e não houve treinamento.
+- Médias: beta 2 = 85,6458%; Swish = 85,5967%; beta 5 = 85,5414%;
+  ReLU = 85,4780%.
+- `F-SOFTPLUS` e `S-BETA-1` tiveram predições idênticas nas três seeds.
+- Evidência: `experiments/final_evaluation/` e ID
+  `OFFICIAL-185889b9b944304ba514`.
+
+## Análise conjunta
+
+- A Pareto por validação ficou em L1, L2, ReLU e beta 5.
+- L1 teve o melhor retorno: 3,4547 p.p./GFLOP.
+- Sob o orçamento da ReLU, a escolha foi a própria ReLU.
+- V3 elevou muito o custo para pouco ganho; V2 mudou a acurácia com custo igual.
+- Beta 5 liderou a validação; beta 2 liderou apenas o teste descritivo.
+- Nenhum ganho vizinho da Pareto atingiu 0,5 p.p.; as inclinações globais não
+  foram monotônicas.
+- Evidência: `experiments/final_analysis/`; reprodução:
+  `python -m experiments.plot_joint`.
+
+## Dificuldade final de reprodução
+
+- A suíte ampla de desenvolvimento alcançou 286 testes, mas inclui treinos
+  curtos e um teste de loader que acessa `adult.test`.
+- Esse acesso posterior não executou checkpoints, não gerou métricas de modelos
+  e não mudou hipótese, seleção ou Pareto.
+- A reprodução final usa somente `--verify-only`, os seis testes focados e os
+  geradores de gráficos; essa rota não treina nem carrega o teste.
+
 | Item | Estado | Evidência atual |
 |---:|---|---|
-| 1. Uso de IA | Parcial | `experiments/ai_usage.md` |
-| 2. Tarefa Adult | Parcial | `AGENTS.md` e configuração de V1 |
-| 3. Baseline | Concluído | ReLU: três seeds e repetição exata da seed 0; teste reservado |
+| 1. Uso de IA | Pronto para revisão | `experiments/ai_usage.md` e roteiro |
+| 2. Tarefa Adult | Pronto para revisão | README, loader e roteiro |
+| 3. Baseline | Concluído | ReLU: validação, repetição e teste oficial |
 | 4. Variáveis e controles | Concluído | `AGENTS.md`, `hypotheses.md` e protocolos V1/V2/V3 |
 | 5. Formulação | Concluído | ativações q01 e colapso afim da V3 |
 | 6. Arquitetura e treino | Concluído | `AdultMLP`, `AdultLinearClassifier` e testes |
 | 7. Protocolo | Concluído | executores e configurações de V1, V2 e V3 |
-| 8. Resultados | Parcial | V1, V2 e V3 completas em validação; teste final pendente |
-| 9. Desempenho/FLOPs | Parcial | resultados por variável prontos; síntese conjunta pendente |
+| 8. Resultados | Concluído | V1, V2 e V3 em validação; 33 resultados oficiais |
+| 9. Desempenho/FLOPs | Concluído | tabela, Pareto, retorno, orçamento e três gráficos conjuntos |
 | 10. Hipóteses/resultados | Concluído | análises de V1, V2 e V3 |
-| 11. Dificuldades | Parcial | estabilidade da loss e correção vetor `@` vetor em `experiments/ai_usage.md` |
-| 12. Reprodução | Parcial | executores, logs, tabelas e gráficos das três variáveis |
+| 11. Dificuldades | Pronto para revisão | estabilidade, vetor `@` vetor e auditoria da suíte ampla |
+| 12. Reprodução | Pronto para revisão | README, `--verify-only`, seis testes e geradores |

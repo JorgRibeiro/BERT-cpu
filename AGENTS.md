@@ -17,8 +17,8 @@ O contrato está com o **protocolo pré-experimental confirmado**. Em 21/07/2026
 o estudante confirmou as três variáveis, sua ordem, hipóteses, controles,
 métricas, repetições e regras de análise descritas abaixo. A única recomendação
 não adotada foi consultar o professor sobre o enquadramento acadêmico de V3; a
-variável permanece selecionada, com esse risco documentado. Ainda não houve
-consulta ao teste oficial. A Variável 1 foi executada e analisada localmente em
+variável permanece selecionada, com esse risco documentado. A Variável 1 foi
+executada e analisada localmente em
 21/07/2026: 12 runs primárias, uma repetição determinística, tabela agregada e
 três gráficos reproduzíveis. Esses artefatos foram versionados no commit de
 fechamento da V1. Em 23/07/2026, o estudante solicitou o início da V2. Sua
@@ -32,7 +32,16 @@ e validada com três smokes, depois versionada no commit autorizado `2c15768`.
 As nove runs científicas da V3 foram executadas e analisadas localmente, ainda
 sem teste oficial: H3a não foi contradita, H3b e H3c foram sustentadas e H3d
 ficou inconclusiva. Os artefatos de resultado foram versionados no commit de
-encerramento autorizado pelo estudante.
+encerramento autorizado pelo estudante. Depois de congelar as três análises, o
+estudante autorizou a avaliação oficial: os 33 checkpoints primários foram
+avaliados em 24/07/2026, sem novo treinamento e sem alterar os CSVs científicos.
+Depois disso, a análise conjunta foi concluída localmente a partir dos
+artefatos já salvos. Seu gerador não carrega o teste: produziu 33 pares brutos,
+resumo das 11 configurações, retornos marginais e três gráficos reproduzíveis.
+A seleção continuou baseada exclusivamente na validação. Uma suíte ampla de
+desenvolvimento executada depois chamou o loader do Adult test em um teste de
+schema e também fez treinos curtos; esse acesso não executou checkpoints
+oficiais, não gerou métricas de modelos e não alterou decisões ou resultados.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
@@ -51,7 +60,7 @@ respectivamente.
   `Linear(108,64) -> ReLU -> Linear(64,2)`, identificada como `F-RELU`.
 - Métricas: acurácia de treino, validação e teste. A métrica primária é a média
   da acurácia de validação na época 100 entre seeds; o checkpoint principal é o
-  da época 100, e o teste só será consultado na fase final confirmada.
+  da época 100. O teste foi consultado somente na fase final confirmada.
 - Quantidade confirmada: três variáveis, investigadas nesta ordem e de forma
   separada: família da ativação, curvatura da Softplus e profundidade linear sem
   ativação.
@@ -131,15 +140,30 @@ registre-o como limitação; não o corrija silenciosamente durante uma varredur
 
 ### Testes e FLOPs
 
-O comando abaixo passa atualmente:
+A suíte ampla de desenvolvimento alcançou historicamente:
 
 ```text
 pytest -q --ignore=test/test_model.py
-269 passed
+286 passed
 ```
 
-Quatro placeholders do Transformer continuam fora do escopo. Não afirme que a
-suíte completa passa.
+Ela não é a rota segura de reprodução final: inclui treinos curtos e
+`test_test_split_matches_train_feature_space`, que chama o loader do Adult
+test. Quatro placeholders do Transformer continuam fora do escopo. Não afirme
+que a suíte completa passa nem que esse comando preserva a reserva do teste.
+
+A validação segura e focada da análise conjunta é:
+
+```text
+pytest -q test/test_plot_joint.py
+6 passed
+```
+
+Antes do commit de fechamento, quatro preflights bloquearam corretamente
+`requirements.txt` modificado como fonte crítica. Depois do versionamento, sem
+enfraquecer a trava, a suíte focada do avaliador e da análise terminou com
+`17 passed`. Os artefatos oficiais também continuaram válidos em
+`--verify-only`.
 
 O contador de FLOPs:
 
@@ -229,6 +253,49 @@ As nove runs científicas foram validadas em um único contexto da V3:
 
 As nove runs não carregaram o teste oficial. O encerramento da V3 foi
 versionado com autorização do estudante.
+
+### Avaliação oficial
+
+`experiments/evaluate_official_test.py` validou os 33 checkpoints primários
+antes de carregar Adult test. A repetição `F-RELU-s0-r2` foi excluída por não
+ser uma run primária. O avaliador:
+
+- reproduziu acurácia e FLOPs de validação de cada checkpoint;
+- congelou SHA-256 e blob Git do `adult.test`;
+- no fluxo controlado do avaliador, carregou o teste uma vez e fez um forward
+  por checkpoint;
+- não treinou, não aceitou subconjuntos e não alterou os CSVs das variáveis;
+- registrou manifesto, log e CSV em `experiments/final_evaluation/`.
+
+A avaliação `OFFICIAL-185889b9b944304ba514` contém 33 resultados válidos para
+16.281 amostras. As maiores médias descritivas no teste foram beta 2 =
+85,6458%, Swish = 85,5967% e beta 5 = 85,5414%. `F-SOFTPLUS` e
+`S-BETA-1` produziram predições idênticas nas três seeds.
+
+### Análise conjunta
+
+`experiments/plot_joint.py` verifica os resultados oficiais já salvos, une-os
+por `source_run_id` às 33 runs primárias e não chama o loader do Adult test.
+Ele gera `experiments/final_analysis/` com os pares brutos, tabela agregada,
+retornos marginais, análise escrita e três gráficos.
+
+Todas as decisões usam a validação da época 100 e FLOPs instrumentados de
+treinamento. O teste permanece apenas descritivo:
+
+- Pareto global: `L1-DIRECT`, `L2-IDENTITY`, `F-RELU` e `S-BETA-5`;
+- melhor retorno por FLOP: `L1-DIRECT`, com 3,454657 p.p./GFLOP;
+- melhor validação: `S-BETA-5`, com 85,1966%;
+- escolha sob o orçamento de 84,2375505 GFLOPs da ReLU: `F-RELU`;
+- V3 mudou muito o custo e pouco o desempenho; V2 alterou a acurácia sem mudar
+  o custo instrumentado entre seus níveis;
+- a maior média no teste foi `S-BETA-2`, mas isso não mudou a seleção.
+
+Pelo limiar de 0,5 p.p., nenhum ganho entre vizinhos da Pareto foi relevante.
+Os retornos marginais globais não decresceram monotonicamente; portanto não há
+um único cotovelo suave. A queda é clara dentro de V3, especialmente de L2 para
+L3. A suíte ampla de desenvolvimento alcançou 286 testes permitidos, mas não
+integra a rota segura de reprodução pelos acessos e treinos descritos acima.
+`test/test_model.py` continua excluído pelos placeholders fora do escopo.
 
 ### Resultado da Variável 1
 
@@ -567,9 +634,13 @@ observações.
     commit de encerramento autorizado em 24/07/2026;
 12. implementar, testar, executar e encerrar V3 — concluído e versionado com
     autorização em 24/07/2026;
-13. realizar a avaliação de teste na fase aprovada;
-14. realizar a análise conjunta de trade-offs;
-15. atualizar README, dependências, uso de IA, vídeo e reprodução.
+13. realizar a avaliação de teste na fase aprovada — concluída e versionada em
+    24/07/2026, sem novo treinamento;
+14. realizar a análise conjunta de trade-offs — concluída e versionada em
+    24/07/2026; o gerador não treina nem carrega o teste;
+15. atualizar README, dependências, uso de IA, vídeo e reprodução — concluído
+    e versionado com autorização em 24/07/2026; revisão do estudante e gravação
+    pendentes.
 
 Não implemente as três variáveis simultaneamente. Uma implementação fundamental
 compartilhada da q01 pode ser concluída antes das varreduras, mas cada fator
@@ -675,16 +746,22 @@ confirmação do estudante.
 - smoke test curto antes da baseline de 100 épocas;
 - confirmação de que a baseline/default com ReLU continua reproduzível.
 
-Comandos atualmente válidos:
+Rota segura para validar e regenerar os resultados publicados:
 
 ```bash
-pytest -q --ignore=test/test_model.py
+python -m experiments.evaluate_official_test --verify-only
+pytest -q test/test_plot_joint.py
 python -m exercises.q01_activations
-python -m exercises.task_binary_classification --activation relu --epochs 2
+python -m experiments.plot_v1
+python -m experiments.plot_v2
+python -m experiments.plot_v3
+python -m experiments.plot_joint
+python -m experiments.evaluate_official_test --verify-only
 ```
 
-Sem `--epochs 2`, o último módulo preserva o padrão de 100 épocas. Não use
-`--evaluate-test` antes da fase final aprovada.
+Essa sequência não treina e não carrega novamente o Adult test. O comando amplo
+de pytest e `task_binary_classification` continuam úteis no desenvolvimento,
+mas não pertencem à reprodução final segura.
 
 ## Fontes de verdade
 
@@ -750,4 +827,14 @@ pré-registrada e infraestrutura versionada no commit `2c15768`. Suas nove runs,
 tabela, análise e três gráficos estão concluídos localmente, sem teste oficial.
 H3a não foi contradita, H3b/H3c foram sustentadas e H3d ficou inconclusiva.
 O encerramento foi versionado com autorização. A consulta ao professor sobre V3
-foi rejeitada pelo estudante e permanece como risco.
+foi rejeitada pelo estudante e permanece como risco. A avaliação oficial dos
+33 checkpoints primários foi concluída e auditada localmente, com um único load
+controlado do teste e nenhum treinamento. A análise conjunta também foi
+concluída localmente; seu gerador não acessou o teste: L1 teve o melhor retorno,
+ReLU foi a escolha sob orçamento e a Pareto global terminou em beta 5. A suíte
+ampla de desenvolvimento acessou depois o loader do teste para validar schema,
+sem produzir métricas ou mudar conclusões. README, dependências, mapa e roteiro
+do vídeo foram preparados localmente. O próximo passo é a revisão do estudante,
+gravação e inclusão do link. Avaliador, resultados oficiais, análise conjunta e
+materiais de entrega foram incluídos no commit de fechamento autorizado em
+24/07/2026. Nenhum push foi autorizado.

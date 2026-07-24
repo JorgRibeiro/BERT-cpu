@@ -1,0 +1,12 @@
+scope,from_config_id,to_config_id,delta_validation_accuracy_pp,delta_training_gflops,marginal_return_pp_per_gflop,gain_relevant_0_5pp,status
+global_pareto,L1-DIRECT,L2-IDENTITY,0.1330876331,81.4184100000,0.0016346135,no,positive_below_threshold
+global_pareto,L2-IDENTITY,F-RELU,0.3736691237,0.2083904000,1.7931206220,no,positive_below_threshold
+global_pareto,F-RELU,S-BETA-5,0.1484438984,0.8335616000,0.1780838974,no,positive_below_threshold
+V1_vs_relu,F-RELU,F-SIGMOID,-0.3020065520,0.6251712000,-0.4830781584,no,accuracy_decrease
+V1_vs_relu,F-RELU,F-SWISH,0.0870188370,0.8335616000,0.1043940088,no,positive_below_threshold
+V1_vs_relu,F-RELU,F-SOFTPLUS,-0.1638001638,0.4167808000,-0.3930127391,no,accuracy_decrease
+V2_vs_beta_1,S-BETA-1,S-BETA-0.5,-0.1382063882,0.0000000000,,no,equal_cost_no_marginal
+V2_vs_beta_1,S-BETA-1,S-BETA-2,0.1535626536,0.0000000000,,no,equal_cost_no_marginal
+V2_vs_beta_1,S-BETA-1,S-BETA-5,0.3122440622,0.0000000000,,no,equal_cost_no_marginal
+V3_adjacent_depth,L1-DIRECT,L2-IDENTITY,0.1330876331,81.4184100000,0.0016346135,no,positive_below_threshold
+V3_adjacent_depth,L2-IDENTITY,L3-IDENTITY,0.0051187551,70.4362880000,0.0000726721,no,positive_below_threshold

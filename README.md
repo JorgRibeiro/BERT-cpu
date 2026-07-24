@@ -1,285 +1,283 @@
-# BERT-CPU
+# Adult + q01 — funções de ativação em NumPy/CPU
 
-> *"What I cannot create, I do not understand."*  
-> — Richard Feynman
+Estudo dirigido de Reconhecimento de Padrões 2026.1 sobre classificação binária
+do conjunto Adult. O experimento investiga se a formulação da ativação oculta
+altera a acurácia e o retorno por FLOP de uma MLP.
 
-This project is built in that spirit: the surest way to understand BERT is to
-build it from scratch. Here, *from scratch* is meant literally — **NumPy is the
-only dependency, used only as an array computation backend**.
+O núcleo neural e o autograd usam NumPy/CPU; Matplotlib é usado para os
+gráficos. Este trabalho foi construído sobre o
+[BERT-cpu original](https://github.com/luisfilipeap/BERT-cpu).
 
-## What is BERT-cpu?
+## Resultado em uma frase
 
-BERT-cpu is a NumPy-only, CPU-only environment for learning how a BERT-style
-model is built and trained *from the autograd level up* — no GPUs, no CUDA, no
-heavyweight framework. It favours **clarity, reproducibility and
-inspectability** over raw performance. **Our engine is deliberately not meant to compete with PyTorch, TensorFlow, JAX or any other Deep Learning framework**.
+As ativações alteraram acurácia e custo, mas nenhuma função suave superou a
+ReLU pelo ganho relevante pré-definido de `0,5` ponto percentual. `S-BETA-5`
+teve a maior validação, `L1-DIRECT` o melhor retorno por FLOP e `F-RELU` foi a
+escolha sob o orçamento computacional da baseline.
 
-Its real strength is that it makes the **learning machinery visible**. For
-example, the didactic walkthrough turns the autograd engine inside out: it draws
-the computational graph **vertically, the way `git log --graph` stacks commits**
-(output on top, operands below), shows every node's forward value, then
-**animates backpropagation step by step** — filling in each gradient with the
-exact chain-rule formula used, all the way from the output seed back to the
-inputs. The maths of training a network stops being a black box and becomes
-something you can read line by line:
+![Acurácia de validação versus FLOPs](experiments/final_analysis/plots/accuracy_vs_training_flops.png)
 
-![Gradient-graph walkthrough](docs/demo.svg)
+## Tarefa e baseline
 
-The same drawing scales up unchanged: a single `wᵀ @ x` op, or a whole stack of
-`Linear` layers — it is always *a bigger graph of the same kind* (run
-`python -m learn.viz02_nn` to see three activated layers chained together).
+- Dataset: Adult, classificação de renda `<=50K` ou `>50K`.
+- Entrada: 14 atributos brutos transformados em 108 features.
+- Saída: dois logits, um por classe.
+- Treino oficial: 32.561 amostras, divididas em 26.049 para treino e 6.512 para
+  validação.
+- Teste oficial: 16.281 amostras.
+- Objetivo: minimizar cross-entropy.
+- Métrica principal: média da acurácia de validação na época 100.
+- Baseline: `Linear(108,64) -> ReLU -> Linear(64,2)`, com 7.106 parâmetros.
 
-## Who is it for?
+## Protocolo
 
-### For students
+| Controle | Valor |
+|---|---|
+| Treinamento | full-batch, Adam, `lr=0,01`, 100 épocas |
+| Hold-out | 20%, materializado uma vez com seed 0 |
+| Seeds do modelo | 0, 1 e 2 |
+| Escala | 11 configurações e 33 runs primárias |
+| Verificação extra | repetição determinística de `F-RELU`, seed 0 |
+| Ganho relevante | `0,5` p.p. e mesmo sinal em pelo menos duas seeds |
+| Seleção | validação na época 100; menor custo e parâmetros como desempate |
+| Teste | somente depois de congelar hipóteses e decisões |
 
-- **A democratic way to learn the maths.** See the full mathematics of training
-  a network on any laptop — no GPU, CUDA, or cloud budget required. **The barrier to understanding deep learning becomes curiosity, not expensive hardware: the maths is the point, the hardware is not**.
-- Study how a network is differentiated **from first principles**, seeing how a   `Tensor` stores its value, gradient, parent nodes, op label, and local   backward function.
-- Watch the **computational graph** get built during the forward pass, and flow backward, one node at a time, with the chain-rule formula shown at each step.
-- Connect mathematical formulas directly to executable NumPy code.
+Os custos são sempre **FLOPs instrumentados**. Eles incluem os forwards, losses
+e backward das multiplicações matriciais na janela definida, mas não representam
+tempo, energia, memória, backward elementwise ou custo completo do Adam.
 
-### For teaching
+## Variáveis investigadas
 
-- Use the step-by-step walkthrough as a lecture artifact for courses on
-  automatic differentiation, deep-learning fundamentals, and (as the higher
-  layers land) Transformer models.
-- Demonstrate each engine operation independently before assembling larger
-  computations.
-- Build exercises where students modify a single op or backward rule and
-  immediately observe the effect on the gradients.
-- Debug student implementations by comparing **analytic vs numerical**
-  gradients.
-- Choose the precision and RNG seed of the demo on the command line, so the
-  same walkthrough can be shown under different settings
-  (`python -m learn.viz01_engine --precision float32 --seed 0`).
+### V1 — família da ativação
 
-### For researchers
+Mesma MLP `108 -> 64 -> 2`, alterando apenas `h = g(z)`:
 
-- Validate that an idea is **mathematically and computationally sound** in a
-  transparent setting before investing in a large-scale implementation.
-- **Reproducibility:** one global seed (`bert_cpu.set_seed(0)`) makes a whole run
-  repeatable end to end, with far fewer sources of randomness than large-scale
-  GPU training.
-- **Minimal stack:** only NumPy — no CUDA versions, GPU kernels, or distributed
-  setup to reproduce, so experiments are easy to replicate on common hardware.
-  Skip the infrastructure tax. Test fundamental "first-principles" hypotheses
-  (e.g., alternative credit assignment, sparse topologies) instantly on **any machine**,
-  without managing CUDA toolkits, dependency hell, or cluster allocations.
-- **Full inspectability:** the entire computational path (values *and*
-  gradients) is visible, which makes failures and learning dynamics easy to
-  examine in small, controlled toy settings.
-- **Precision control:** run the engine in float64 (stable, default) or
-  float32/float16 to study the numerical behaviour of an idea.
+| ID | Formulação |
+|---|---|
+| `F-RELU` | `max(0,z)` |
+| `F-SIGMOID` | `1 / (1 + exp(-z))` |
+| `F-SWISH` | `z * sigmoid(z)` |
+| `F-SOFTPLUS` | `log(1 + exp(z))` |
 
-## Current status
+### V2 — curvatura da Softplus
 
-The project is being built bottom-up. What exists today:
+```text
+softplus_beta(z) = log(1 + exp(beta*z)) / beta
+```
 
-- **Autograd engine** (`bert_cpu/engine.py`) — ✅ complete. The `Tensor` class
-  with reverse-mode `backward()`, broadcasting, elementwise ops, `@` (matmul),
-  activations (`tanh`, `relu`, `gelu`), reductions (`sum`, `mean`, `var`,
-  `max`), `softmax`, indexing, `cat`, plus `set_seed` and precision control.
-- **NN layers** (`bert_cpu/nn.py`) — 🚧 in progress. `Module` (parameter
-  collection, `zero_grad`, `train`/`eval`), `Parameter`, `Linear` (with the bias
-  folded into the weight via the `x_0 = 1` trick), and `xavier_uniform` are
-  implemented. `Embedding`, `LayerNorm`, `Dropout`, `Sequential` are scaffolded.
-- **Visualisations** (`learn/`) — ✅ `viz01_engine` (the autograd engine) and
-  `viz02_nn` (a stack of `Linear` layers and its chain rule).
-- **Higher layers** — ⏳ scaffolded only: attention (`attention.py`), the
-  Transformer encoder (`transformer.py`), optimizers (`optim.py`), losses
-  (`loss.py`) and the tokenizer (`tokenizer.py`) still raise
-  `NotImplementedError`.
+Foram usados `beta = 0,5`, `1`, `2` e `5`. Beta é fixo e não aprendível.
 
-## Requirements
+### V3 — profundidade linear sem ativação
 
-- Python >= 3.8
-- NumPy (the only runtime dependency)
+| ID | Arquitetura | Parâmetros |
+|---|---|---:|
+| `L1-DIRECT` | `Linear(108,2)` | 218 |
+| `L2-IDENTITY` | `Linear(108,64) -> Linear(64,2)` | 7.106 |
+| `L3-IDENTITY` | `Linear(108,64) -> Linear(64,64) -> Linear(64,2)` | 11.266 |
 
-## Setup
+Não existe uma camada Identity artificial: as camadas lineares são conectadas
+diretamente. A composição continua equivalente a uma única função afim
+`W*x+b`, embora parametrização, otimização, parâmetros e FLOPs mudem. V3 mantém
+o risco de ser interpretada como variável arquitetural, e não como terceira
+variável de q01; não houve confirmação do professor sobre esse enquadramento.
 
-Create a virtual environment and install the dependencies:
+## Resultados
+
+As médias usam as três seeds. O teste é somente descritivo e não participou de
+seleção, Pareto ou avaliação das hipóteses.
+
+| Configuração | Validação | Teste* | GFLOPs/run | Retorno | Estado global |
+|---|---:|---:|---:|---:|---|
+| `S-BETA-5` | 85,1966% | 85,5414% | 85,0711121 | 0,113722 | Pareto |
+| `F-SWISH` | 85,1351% | 85,5967% | 85,0711121 | 0,113000 | Dominada |
+| `F-RELU` | 85,0481% | 85,4780% | 84,2375505 | 0,113085 | Pareto |
+| `S-BETA-2` | 85,0379% | 85,6458% | 85,0711121 | 0,111857 | Dominada |
+| `F-SOFTPLUS` | 84,8843% | 85,3735% | 84,6543313 | 0,110593 | Dominada |
+| `S-BETA-1` | 84,8843% | 85,3735% | 85,0711121 | 0,110051 | Dominada |
+| `F-SIGMOID` | 84,7461% | 85,2527% | 84,8627217 | 0,108693 | Dominada |
+| `S-BETA-0.5` | 84,7461% | 85,2814% | 85,0711121 | 0,108427 | Dominada |
+| `L3-IDENTITY` | 84,6796% | 85,2343% | 154,4654481 | 0,059285 | Dominada |
+| `L2-IDENTITY` | 84,6744% | 85,2466% | 84,0291601 | 0,108919 | Pareto |
+| `L1-DIRECT` | 84,5414% | 85,1135% | 2,6107501 | 3,454657 | Pareto |
+
+\* Teste oficial apenas descritivo.
+
+Tabela com desvios, pares brutos, marginais e interpretação completa:
+[análise conjunta](experiments/final_analysis/analysis.md).
+
+### Hipóteses
+
+| Hipótese | Resultado |
+|---|---|
+| H1a — uma suave supera ReLU por 0,5 p.p. | Inconclusiva |
+| H1b — Sigmoid fica 0,5 p.p. abaixo da ReLU | Inconclusiva |
+| H1c — ReLU tem o menor custo da V1 | Sustentada |
+| H2 — melhor beta central supera melhor extremo | Inconclusiva |
+| H3a — profundidade linear não melhora L1 por 0,5 p.p. | Não contradita |
+| H3b — parâmetros e FLOPs crescem com a profundidade | Sustentada |
+| H3c — retorno segue L1 > L2 > L3 | Sustentada |
+| H3d — ReLU supera L2 por 0,5 p.p. | Inconclusiva |
+
+### Quatro respostas de trade-off
+
+1. Melhor retorno por FLOP: `L1-DIRECT`, com `3,454657 p.p./GFLOP`.
+2. Ganhos abaixo do limiar já aparecem em `L1 -> L2`. Dentro de V3, o retorno
+   marginal cai novamente em `L2 -> L3`; globalmente não há um único cotovelo
+   monotônico.
+3. V3 adicionou `151,854698 GFLOPs` de L1 a L3 para apenas `0,138206 p.p.`.
+   No sentido contrário, V2 variou `0,450450 p.p.` sem alterar o custo entre
+   seus níveis, ainda abaixo do limiar relevante.
+4. Sob o orçamento da ReLU (`84,2375505 GFLOPs`), a escolha é `F-RELU`, com
+   85,0481% de validação. Para eficiência absoluta, a escolha seria L1.
+
+## Instalação
+
+Ambiente registrado: Python 3.11.14, NumPy 2.1.3, Matplotlib 3.9.2 e
+pytest 8.3.4.
 
 ```bash
-# Create the virtual environment
-python3 -m venv .venv
+git clone https://github.com/JorgRibeiro/BERT-cpu.git
+cd BERT-cpu
+git switch q01-ativacoes-adult
 
-# Activate it
-source .venv/bin/activate        # Linux / macOS
-# .venv\Scripts\activate         # Windows (PowerShell)
-
-# Install the dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-> **Note:** if `python3 -m venv` fails with an `ensurepip is not available`
-> error, your interpreter is missing the `venv` module. On Debian/Ubuntu install
-> it with `apt install python3-venv`, or use a `pyenv`-managed Python.
+Os arquivos Adult necessários já estão em `datasets/adult/`.
 
-## Learning path (start here)
+## Reprodução segura dos resultados publicados
 
-This project is meant to be *read and run* from the ground up. Everything BERT
-does eventually reduces to one idea: a graph of tensor operations through which
-gradients flow backward. So the very first thing to understand — right after
-installing — is **how the autograd engine works**.
-
-**Step 1 — see the gradient engine in action.** The didactic visualisations live
-in the `learn/` package and are meant to be run directly (use `-m` from the
-project root so `bert_cpu` is importable — running the path directly is not).
-With the virtual environment activated:
+Esta sequência não treina modelos e não carrega novamente o Adult test:
 
 ```bash
-python -m learn.viz01_engine
+# Validar os quatro artefatos oficiais já salvos
+python -m experiments.evaluate_official_test --verify-only
+
+# Testar que a análise bloqueia loader, treino, forward e reavaliação
+pytest -q test/test_plot_joint.py
+
+# Regenerar o gráfico das funções, tabelas e gráficos experimentais
+python -m exercises.q01_activations
+python -m experiments.plot_v1
+python -m experiments.plot_v2
+python -m experiments.plot_v3
+python -m experiments.plot_joint
+
+# Conferência final, ainda sem carregar o teste
+python -m experiments.evaluate_official_test --verify-only
 ```
 
-This standalone run also lets you choose the numerical precision and the RNG
-seed, so you can watch the same walkthrough under different settings and get
-reproducible numbers:
+Resultado esperado do teste focado: `6 passed`. O comando `--verify-only`
+apenas lê e valida manifestos, log, CSV e hashes. A avaliação que carregaria o
+teste não é parte da reprodução final.
+
+A suíte ampla de desenvolvimento alcançou historicamente 286 testes permitidos,
+com `test/test_model.py` excluído por quatro placeholders Transformer. Ela não é
+usada na reprodução acima: inclui treinos curtos e um teste de loader que acessa
+`adult.test`. Esse acesso não executa checkpoints nem participa das conclusões.
+
+## Reexecução opcional dos treinamentos
+
+Faça isso somente em um checkout limpo da branch e em diretórios vazios. Estes
+comandos repetem as 33 runs primárias e a repetição determinística da ReLU em
+CPU, mas não avaliam o teste oficial.
 
 ```bash
-python -m learn.viz01_engine --precision float32 --seed 0
-python -m learn.viz01_engine --precision float16 --seed 42
+Q01_REPRO_DIR=/tmp/bert-cpu-q01-reproduction
+mkdir -p "$Q01_REPRO_DIR/v1" "$Q01_REPRO_DIR/v2" "$Q01_REPRO_DIR/v3"
+
+# V1: baseline, repetição determinística e demais seeds
+python -m experiments.run_v1 --config-id F-RELU --seed 0 --repetition 1 \
+  --artifacts-dir "$Q01_REPRO_DIR/v1" --quiet
+python -m experiments.run_v1 --config-id F-RELU --seed 0 --repetition 2 \
+  --artifacts-dir "$Q01_REPRO_DIR/v1" --quiet
+
+for seed in 1 2; do
+  python -m experiments.run_v1 --config-id F-RELU --seed "$seed" \
+    --artifacts-dir "$Q01_REPRO_DIR/v1" --quiet
+done
+
+for config in F-SIGMOID F-SWISH F-SOFTPLUS; do
+  for seed in 0 1 2; do
+    python -m experiments.run_v1 --config-id "$config" --seed "$seed" \
+      --artifacts-dir "$Q01_REPRO_DIR/v1" --quiet
+  done
+done
+
+# V2 e V3: planos congelados de 12 e 9 runs
+python -m experiments.run_v2_all \
+  --artifacts-dir "$Q01_REPRO_DIR/v2" --quiet
+python -m experiments.run_v3_all \
+  --artifacts-dir "$Q01_REPRO_DIR/v3" --quiet
 ```
 
-- `--precision` picks the engine's float dtype (`float16` / `float32` /
-  `float64`; default `float64`).
-- `--seed` seeds NumPy's RNG so the run is reproducible (omit for a random run).
-
-What you will see, and what to take away from it:
-
-1. **An input column vector** `x` and a **weight column vector** `w`. The demo
-   uses the "bias trick": the input is *augmented* with a leading constant
-   `x_0 = 1`, so `w_0` plays the role of the bias.
-2. **The forward pass** of a tiny linear layer, computing `z = wᵀ @ x` (a matrix
-   multiplication) and then `y = tanh(z)`, step by step.
-3. **The computational graph as a vertical tree** (output on top, operands
-   hanging below with `git`-style connectors), each node annotated with its
-   forward `value` and its `grad` — column vectors and matrices drawn in their
-   mathematical shape.
-4. **The backward pass, animated step by step.** Each step fills in one node's
-   gradient and prints the local derivative rule it used (for the `tanh`, the
-   matmul `@`, and the transpose), so you watch the chain rule propagate from
-   the output seed back to every input.
-
-Read the graph from the top down to follow the forward pass, then read the
-gradients to see how `backward()` distributes the chain rule from the output
-back to every input.
-
-**Step 2 — see a layer, and how stacking layers chains derivatives.** Once the
-engine clicks, move up one level to the `nn` layers:
+Regere as análises de validação desses novos diretórios:
 
 ```bash
-python -m learn.viz02_nn --seed 5      # seed 5 keeps every ReLU unit lively
+python -m experiments.plot_v1 \
+  --results "$Q01_REPRO_DIR/v1/results.csv" \
+  --summary "$Q01_REPRO_DIR/v1/summary.csv" \
+  --plots-dir "$Q01_REPRO_DIR/v1/plots"
+
+python -m experiments.plot_v2 \
+  --results "$Q01_REPRO_DIR/v2/results.csv" \
+  --summary "$Q01_REPRO_DIR/v2/summary.csv" \
+  --plots-dir "$Q01_REPRO_DIR/v2/plots"
+
+python -m experiments.plot_v3 \
+  --results "$Q01_REPRO_DIR/v3/results.csv" \
+  --v1-results "$Q01_REPRO_DIR/v1/results.csv" \
+  --summary "$Q01_REPRO_DIR/v3/summary.csv" \
+  --plots-dir "$Q01_REPRO_DIR/v3/plots"
 ```
 
-This walkthrough shows that a `Linear` layer is **just a matrix** (with the bias
-folded into row 0 via the same `x_0 = 1` trick), then a nonlinearity; and that
-**stacking three activated layers turns the backward pass into a chain of
-derivatives**, propagated layer by layer and multiplied at each step by the
-activation slope `act'(z)` and the weight matrix. The rest of the library
-(attention, the full encoder) is just *bigger graphs of the same kind*.
+A análise conjunta publicada continua ligada à avaliação oficial selada. Use
+`--verify-only` para auditar a avaliação e o teste focado mais o gerador para
+auditar a análise; não reavalie o teste para escolher ou ajustar configurações.
 
-**Step 3 — confirm everything is correct.** Run the software tests
-(broadcasting, matmul, softmax, finite-difference gradient checks, the layers,
-and the cross-layer chain rule):
+## Organização dos artefatos
 
-```bash
-pytest
-```
+| Caminho | Conteúdo |
+|---|---|
+| [`experiments/configs/`](experiments/configs/) | protocolos congelados |
+| [`experiments/hypotheses.md`](experiments/hypotheses.md) | hipóteses pré-experimentais |
+| [`experiments/analysis.md`](experiments/analysis.md) | análise da V1 |
+| [`experiments/v2/`](experiments/v2/) | protocolo, runs e análise da V2 |
+| [`experiments/v3/`](experiments/v3/) | protocolo, runs e análise da V3 |
+| [`experiments/final_evaluation/`](experiments/final_evaluation/) | avaliação oficial selada |
+| [`experiments/final_analysis/`](experiments/final_analysis/) | síntese, pares, Pareto e gráficos |
+| [`experiments/ai_usage.md`](experiments/ai_usage.md) | uso e verificação da IA |
+| [`experiments/video_evidence.md`](experiments/video_evidence.md) | mapa das evidências do vídeo |
+| [`experiments/video_script.md`](experiments/video_script.md) | roteiro cronometrado de 19min20s |
 
-From here you are ready to explore the higher-level modules. The full testing
-reference is in [Tests and didactic walkthroughs](#tests-and-didactic-walkthroughs).
+## Limitações
 
-## Usage
+- Três seeds no mesmo split medem variação de inicialização, não de amostragem;
+  os desvios não são intervalos de confiança.
+- O encoder foi ajustado em todo `adult.data` antes do hold-out, usando features
+  da futura validação sem seus rótulos.
+- FLOPs instrumentados não representam tempo, energia, memória ou custo total.
+- V3 muda profundidade, parâmetros e geometria de otimização e pode ser
+  interpretada como variável arquitetural fora de q01.
+- A ponte ReLU–L2 atravessa commits e kernels diferentes.
+- O avaliador oficial registrou um único carregamento controlado do teste. Uma
+  suíte ampla executada depois também chamou o loader para conferir forma,
+  labels e espaço de features; esse acesso não gerou métricas de modelos nem
+  alterou hipóteses, Pareto ou seleção.
 
-With the virtual environment activated, import the library from the project
-root. The package directory is `bert_cpu` (underscore — the importable name),
-while the distribution is named `bert-cpu`.
+## Uso de IA
 
-**The autograd engine.** Build an expression out of `Tensor`s and differentiate
-it with `backward()`:
+A IA ajudou a estruturar o protocolo, implementar operações e executores,
+produzir testes e consolidar artefatos. As decisões de escopo, variáveis,
+hipóteses, três seeds, cancelamento do extra de 1000 épocas e autorizações de
+commit foram do estudante. O registro detalhado está em
+[`experiments/ai_usage.md`](experiments/ai_usage.md).
 
-```python
-from bert_cpu import engine as cpu
+## Entrega
 
-cpu.set_seed(0)                        # reproducible run
-
-x = cpu.Tensor([[2.0], [-3.0]])        # input column vector (2, 1)
-w = cpu.Tensor([[0.5], [1.5]])         # weight column vector (2, 1)
-y = (w.T @ x).tanh()                   # forward pass: a tiny linear unit
-
-y.backward()                           # reverse-mode autodiff
-print(x.grad, w.grad)                  # gradients dy/dx, dy/dw
-```
-
-**An `nn.Linear` layer.** The first building block on top of the engine is in
-place. It uses the column-vector "bias trick" (input augmented with `x_0 = 1`,
-bias folded into row 0 of the weight), so a layer is just `Wᵀ @ x`:
-
-```python
-from bert_cpu import engine as cpu, nn
-
-cpu.set_seed(0)
-
-x = cpu.Tensor([[2.0], [-3.0]])        # input column vector (in_features, batch)
-layer = nn.Linear(2, 4)                # weight is (in_features + 1, out_features)
-y = layer(x).relu()                    # forward: relu(Wᵀ @ [1; x])
-
-y.sum().backward()                     # gradients flow into layer.weight
-print(layer.weight.grad)               # dL/dW (bias row included)
-```
-
-> The higher-level pieces (`BERTModel`, `MultiHeadAttention`, optimizers, losses,
-> tokenizer) are scaffolded but not implemented yet — see
-> [Current status](#current-status) above.
-
-## Tests and didactic walkthroughs
-
-The project keeps two concerns cleanly apart:
-
-1. **Software tests** (`test/`) — ordinary correctness checks (broadcasting,
-   matmul, softmax, finite-difference gradient checks, the layers, the
-   cross-layer chain rule). These only assert; they do not teach.
-2. **Didactic walkthroughs** (`learn/`) — runnable visualisations that *print to
-   the console* to teach what is happening internally, e.g. drawing the
-   computational graph and animating how reverse-mode autodiff propagates the
-   chain rule from the output back to the inputs.
-
-First install the test dependency (already covered if you ran the setup above):
-
-```bash
-pip install pytest
-```
-
-### Run the software tests
-
-```bash
-pytest                       # run every software test
-pytest -v                    # verbose, one line per test
-pytest test/test_engine.py   # just the autograd-engine tests
-pytest test/test_nn.py       # just the nn-layer tests
-```
-
-### Run the didactic walkthroughs
-
-The walkthroughs live in `learn/` and are run as modules from the project root
-(use `-m` so `bert_cpu` is importable, not by path):
-
-```bash
-python -m learn.viz01_engine                               # autograd engine, node by node
-python -m learn.viz01_engine --precision float32 --seed 0  # pick dtype and seed
-python -m learn.viz02_nn --seed 5                           # a layer + the chain rule over a stack
-```
-
-- `viz01_engine` — input vector → forward pass → ASCII graph annotated with
-  gradients → step-by-step backward animation.
-- `viz02_nn` — a `Linear` layer as a matrix, then three activated layers whose
-  backward pass is shown as a layer-by-layer chain of derivatives.
-
-Both accept `--precision` and `--seed`. (A lightweight `pytest test/test_viz.py`
-just smoke-checks that the walkthroughs still run.)
-
-> New here? Follow the [Learning path](#learning-path-start-here) above — it
-> walks you through the engine demo first, since every other module is built
-> on top of it.
+- Repositório: <https://github.com/JorgRibeiro/BERT-cpu>
+- Vídeo de até 20 minutos: pendente de gravação e inclusão do link.
+- Envio final: Classroom.

@@ -22,3 +22,4 @@ experiments/v3/.run_reservations/
 experiments/v3/logs/smoke/
 experiments/v3/checkpoints/smoke/
 experiments/v3/.smoke_archive/
+experiments/final_evaluation/.evaluation.lock

@@ -187,3 +187,54 @@
 - Limites: três seeds, split fixo, FLOPs instrumentados e kernels diferentes na
   ponte com ReLU. O teste oficial não foi consultado. O estudante autorizou o
   commit de encerramento; nenhum push foi autorizado.
+
+## 24/07/2026 — avaliação oficial
+
+- Objetivo: avaliar os 33 checkpoints primários no Adult test, sem treinar.
+- Contribuição da IA: inventário fechado, preflight, avaliador idempotente,
+  testes, manifesto, log e CSV separado dos resultados científicos.
+- Verificação: 280 testes; reprodução exata da validação antes do acesso; um
+  load do teste, 33 forwards, zero falhas e duas auditorias independentes.
+- Resultado descritivo: beta 2 teve 85,6458% e Swish 85,5967% de média.
+- Limites: o teste não será usado para mudar decisões. A análise conjunta,
+  commit e push permanecem pendentes.
+
+## 24/07/2026 — análise conjunta
+
+- Objetivo: reunir V1, V2 e V3 e responder às quatro perguntas de eficiência.
+- Contribuição da IA: junção verificável das 33 runs, tabela, Pareto, retornos
+  marginais, orçamento fixo, análise escrita, três gráficos e testes.
+- Verificação: três auditorias somente leitura, seis testes focados e 286 testes
+  permitidos. O gerador bloqueia reevaluar ou carregar o Adult test e preserva
+  os quatro artefatos oficiais.
+- Resultado: L1 teve o melhor retorno; ReLU foi escolhida sob seu orçamento; a
+  Pareto global foi L1, L2, ReLU e beta 5.
+- Limites: teste apenas descritivo, FLOPs instrumentados, três seeds no mesmo
+  split e risco acadêmico de V3. Nenhum commit ou push foi realizado.
+
+## 24/07/2026 — preparação da entrega e auditoria de reprodução
+
+- Objetivo: tornar README, dependências, reprodução e roteiro fiéis ao estado
+  final do estudo.
+- Contribuição da IA: reescrita do README, versões de ambiente, rota segura de
+  reprodução, mapa dos 12 requisitos e roteiro cronometrado de 19min20s.
+- Correção importante: a auditoria constatou que a suíte ampla de 286 testes
+  inclui treinos curtos e um teste de loader que acessa `adult.test`. Esse
+  acesso posterior não executou checkpoints, não gerou métricas e não alterou
+  hipótese, seleção, Pareto ou resultados.
+- Decisão aplicada: a reprodução final usa `--verify-only`, seis testes focados
+  e os geradores. O comando amplo ficou registrado apenas como evidência
+  histórica de desenvolvimento.
+- Verificação: comandos conferidos contra os parsers, seis testes focados
+  aprovados, gráficos regenerados e os quatro hashes da avaliação oficial
+  preservados. As versões instaladas coincidem com `requirements.txt`.
+- Ambiente: `pip check` do ambiente global apontou conflitos externos entre
+  FastAPI/Starlette e Pyppeteer/WebSockets; eles não são dependências deste
+  projeto. O README orienta criar um ambiente virtual limpo.
+- Teste adicional: antes do commit, quatro preflights recusaram corretamente o
+  `requirements.txt` ainda não versionado. Depois do commit, sem alterar a
+  trava, avaliador e análise conjunta terminaram com `17 passed`;
+  `--verify-only` continuou aprovado.
+- Revisão e gravação do vídeo continuam sendo responsabilidade do estudante.
+- Limites: o commit de fechamento foi autorizado pelo estudante; nenhum link de
+  vídeo ou push foi criado nesta etapa.

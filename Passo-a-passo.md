@@ -18,7 +18,11 @@ ficam em `AGENTS.md`.
 - A infraestrutura da V3 foi versionada no commit `2c15768`.
 - A V3 tem nove runs válidas, tabela, três gráficos e análise de H3a–H3d.
 - H3a não foi contradita, H3b/H3c foram sustentadas e H3d ficou inconclusiva.
-- O teste oficial ainda não foi consultado.
+- Os 33 checkpoints primários foram avaliados no teste oficial, sem treinar.
+- A avaliação final está em `experiments/final_evaluation/`.
+- A análise conjunta está em `experiments/final_analysis/`.
+- Pareto global: L1, L2, ReLU e beta 5; melhor retorno: L1; escolha sob o
+  orçamento da ReLU: ReLU.
 - Não fazer commit ou push sem autorização.
 
 ## O que vamos testar
@@ -89,7 +93,7 @@ Validar:
 
 ```bash
 python -m exercises.q01_activations
-pytest -q --ignore=test/test_model.py
+pytest -q test/test_q01_activations.py
 ```
 
 ### 3. Executar a Variável 1 — concluído localmente em 21/07/2026
@@ -139,23 +143,26 @@ Somente depois de fechar V2:
 - [x] gerar tabela, três gráficos e analisar H3a–H3d;
 - [x] versionar o encerramento após autorização.
 
-### 6. Finalizar a análise
+### 6. Finalizar a análise — concluída e versionada em 24/07/2026
 
-- Avaliar no teste todos os checkpoints válidos, sem mudar decisões.
-- Consolidar `results.csv` e gerar os gráficos.
-- Comparar acurácia, parâmetros e FLOPs.
-- Identificar configurações dominadas e fronteira de Pareto.
-- Responder às quatro perguntas obrigatórias sobre retorno por FLOP, retornos
+- [x] Avaliar no teste todos os checkpoints primários, sem mudar decisões.
+- [x] Consolidar os resultados e gerar os gráficos conjuntos.
+- [x] Comparar acurácia, parâmetros e FLOPs.
+- [x] Identificar configurações dominadas e fronteira de Pareto.
+- [x] Responder às quatro perguntas obrigatórias sobre retorno por FLOP, retornos
   decrescentes, variável de maior custo e escolha sob orçamento fixo.
 
-### 7. Preparar a entrega
+### 7. Preparar a entrega — base versionada em 24/07/2026
 
-- Atualizar `README.md` e `requirements.txt`.
-- Finalizar registros de IA, dificuldades e reprodução.
-- Ligar os 12 requisitos do vídeo às evidências do repositório.
-- Preparar vídeo de até 20 minutos, link do GitHub e envio no Classroom.
+- [x] Atualizar `README.md` e dependências.
+- [x] Finalizar registros de IA, dificuldades e reprodução segura.
+- [x] Ligar os 12 requisitos do vídeo às evidências do repositório.
+- [x] Preparar o roteiro de até 20 minutos.
+- [x] Versionar o fechamento após autorização.
+- [ ] Estudante revisar, gravar o vídeo e inserir o link.
+- [ ] Enviar no Classroom.
 
 ## Próximo passo
 
-Confirmar separadamente o início da fase final antes de consultar o teste
-oficial.
+O estudante revisar o roteiro, gravar o vídeo e inserir seu link. Depois,
+preparar o envio no Classroom e decidir separadamente sobre o push.
