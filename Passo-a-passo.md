@@ -137,7 +137,7 @@ Somente depois de fechar V2:
 - [x] executar as três profundidades nas três seeds;
 - [x] comparar `L2-IDENTITY` com `F-RELU`;
 - [x] gerar tabela, três gráficos e analisar H3a–H3d;
-- [ ] versionar o encerramento após autorização.
+- [x] versionar o encerramento após autorização.
 
 ### 6. Finalizar a análise
 
@@ -157,6 +157,5 @@ Somente depois de fechar V2:
 
 ## Próximo passo
 
-Revisar os artefatos da V3 e receber autorização para o commit de encerramento.
-Depois, confirmar separadamente o início da fase final antes de consultar o
-teste oficial.
+Confirmar separadamente o início da fase final antes de consultar o teste
+oficial.

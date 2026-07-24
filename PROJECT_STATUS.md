@@ -6,7 +6,7 @@ Atualizado em 24/07/2026.
 
 - Branch: `q01-ativacoes-adult`.
 - Infraestrutura da V3: commit `2c15768`.
-- Fase: nove runs e análise da V3 concluídas localmente.
+- Fase: V3 encerrada e versionada com autorização.
 - Nenhum push foi executado pelo agente.
 
 ## Evidência da V3
@@ -22,9 +22,9 @@ Atualizado em 24/07/2026.
 
 ## Pendências
 
-1. Revisar e autorizar o commit de encerramento da V3.
-2. Confirmar o início da avaliação final no teste.
-3. Fazer a análise conjunta e preparar a entrega.
+1. Confirmar o início da avaliação final no teste.
+2. Fazer a análise conjunta.
+3. Preparar a entrega.
 
 ## Limites
 

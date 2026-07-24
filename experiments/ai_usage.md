@@ -185,5 +185,5 @@
   íntegros e ponte controlada entre `F-RELU` e `L2-IDENTITY`.
 - Resultado: H3a não contradita, H3b/H3c sustentadas e H3d inconclusiva.
 - Limites: três seeds, split fixo, FLOPs instrumentados e kernels diferentes na
-  ponte com ReLU. O teste oficial não foi consultado; commit de encerramento e
-  push não foram autorizados.
+  ponte com ReLU. O teste oficial não foi consultado. O estudante autorizou o
+  commit de encerramento; nenhum push foi autorizado.

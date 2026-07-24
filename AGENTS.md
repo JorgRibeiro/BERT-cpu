@@ -31,8 +31,8 @@ o estudante solicitou o início da V3. Sua infraestrutura pré-runs foi preparad
 e validada com três smokes, depois versionada no commit autorizado `2c15768`.
 As nove runs científicas da V3 foram executadas e analisadas localmente, ainda
 sem teste oficial: H3a não foi contradita, H3b e H3c foram sustentadas e H3d
-ficou inconclusiva. Os artefatos de resultado ainda exigem revisão e autorização
-para o commit de encerramento.
+ficou inconclusiva. Os artefatos de resultado foram versionados no commit de
+encerramento autorizado pelo estudante.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
@@ -227,8 +227,8 @@ As nove runs científicas foram validadas em um único contexto da V3:
   0,5 p.p.; H3d ficou inconclusiva;
 - tabela, análise e três gráficos regeneráveis estão em `experiments/v3/`.
 
-As nove runs não carregaram o teste oficial. O encerramento da V3 ainda não foi
-versionado.
+As nove runs não carregaram o teste oficial. O encerramento da V3 foi
+versionado com autorização do estudante.
 
 ### Resultado da Variável 1
 
@@ -565,9 +565,8 @@ observações.
     21/07/2026;
 11. implementar, testar, executar e encerrar V2 — concluído e versionado no
     commit de encerramento autorizado em 24/07/2026;
-12. implementar, testar, executar e encerrar V3 — infraestrutura versionada,
-    nove runs e análise concluídas localmente em 24/07/2026; commit de
-    encerramento pendente;
+12. implementar, testar, executar e encerrar V3 — concluído e versionado com
+    autorização em 24/07/2026;
 13. realizar a avaliação de teste na fase aprovada;
 14. realizar a análise conjunta de trade-offs;
 15. atualizar README, dependências, uso de IA, vídeo e reprodução.
@@ -750,5 +749,5 @@ commit `de000de`. A V3 possui protocolo, implementação, executor, análise
 pré-registrada e infraestrutura versionada no commit `2c15768`. Suas nove runs,
 tabela, análise e três gráficos estão concluídos localmente, sem teste oficial.
 H3a não foi contradita, H3b/H3c foram sustentadas e H3d ficou inconclusiva.
-Aguarde autorização para o commit de encerramento. A consulta ao professor
-sobre V3 foi rejeitada pelo estudante e permanece como risco.
+O encerramento foi versionado com autorização. A consulta ao professor sobre V3
+foi rejeitada pelo estudante e permanece como risco.
