@@ -28,8 +28,11 @@ as 12 runs científicas da V2 foram executadas e analisadas sem consulta ao test
 oficial. H2 ficou inconclusiva. Em 24/07/2026, o estudante autorizou o commit de
 encerramento `de000de`, que versiona esses resultados. Depois desse fechamento,
 o estudante solicitou o início da V3. Sua infraestrutura pré-runs foi preparada
-localmente e três smokes técnicos passaram; nenhuma run científica da V3 foi
-executada e um novo commit ainda exige autorização.
+e validada com três smokes, depois versionada no commit autorizado `2c15768`.
+As nove runs científicas da V3 foram executadas e analisadas localmente, ainda
+sem teste oficial: H3a não foi contradita, H3b e H3c foram sustentadas e H3d
+ficou inconclusiva. Os artefatos de resultado ainda exigem revisão e autorização
+para o commit de encerramento.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
@@ -189,7 +192,7 @@ As 12 runs científicas foram validadas em um único contexto experimental:
   custo maior pela instrumentação da multiplicação e divisão por beta;
 - tabela, análise e três gráficos estão em `experiments/v2/`.
 
-### Preparação da V3
+### Executor e resultado da V3
 
 `AdultLinearClassifier` implementa separadamente as três profundidades sem
 alterar a `AdultMLP` de V1/V2. O forward encadeia somente `Linear`; não existe
@@ -205,13 +208,27 @@ seus artefatos e H3a–H3d. Os três smokes de duas épocas passaram:
 
 Os checkpoints, a equivalência afim e os custos de inferência foram validados.
 Os smokes não criaram `results.csv`, não carregaram o teste oficial e não são
-evidência das hipóteses. As runs científicas permanecem bloqueadas até a
-infraestrutura ser versionada com autorização.
+evidência das hipóteses. A infraestrutura foi versionada no commit `2c15768`.
 
-A futura ponte entre `F-RELU` da V1 e `L2-IDENTITY` confere dados, split,
+A ponte entre `F-RELU` da V1 e `L2-IDENTITY` confere dados, split,
 arquitetura linear, inicialização, treinamento, instrumentação e software. Ela
-continua limitada por atravessar commits e possivelmente kernels/plataformas
-diferentes; isso não será apresentado como contexto literal idêntico.
+foi aceita pelos controles, mas atravessa commits e kernels diferentes
+(Linux 7.1.3 na V1 e 7.1.4 na V3); isso não é um contexto literal idêntico.
+
+As nove runs científicas foram validadas em um único contexto da V3:
+
+- validação média: L1 = 84,5414%, L2 = 84,6744% e L3 = 84,6796%;
+- FLOPs instrumentados por run: 2,6107501, 84,0291601 e 154,4654481 GFLOPs;
+- L2 e L3 superaram L1 por apenas 0,1331 e 0,1382 p.p.; H3a não foi
+  contradita, sem alegação de equivalência;
+- parâmetros e FLOPs cresceram estritamente; H3b foi sustentada;
+- o retorno caiu na ordem L1 > L2 > L3; H3c foi sustentada;
+- ReLU superou L2 em 0,3737 p.p. e nas três seeds, abaixo da margem de
+  0,5 p.p.; H3d ficou inconclusiva;
+- tabela, análise e três gráficos regeneráveis estão em `experiments/v3/`.
+
+As nove runs não carregaram o teste oficial. O encerramento da V3 ainda não foi
+versionado.
 
 ### Resultado da Variável 1
 
@@ -548,9 +565,9 @@ observações.
     21/07/2026;
 11. implementar, testar, executar e encerrar V2 — concluído e versionado no
     commit de encerramento autorizado em 24/07/2026;
-12. implementar, testar, executar e encerrar V3 — infraestrutura e três smokes
-    concluídos localmente em 24/07/2026; commit pré-runs, nove runs e análise
-    pendentes;
+12. implementar, testar, executar e encerrar V3 — infraestrutura versionada,
+    nove runs e análise concluídas localmente em 24/07/2026; commit de
+    encerramento pendente;
 13. realizar a avaliação de teste na fase aprovada;
 14. realizar a análise conjunta de trade-offs;
 15. atualizar README, dependências, uso de IA, vídeo e reprodução.
@@ -730,7 +747,8 @@ sem teste oficial: 13 runs válidas, hipóteses avaliadas, tabela e três gráfi
 reproduzíveis. A V2 possui 12 runs válidas, tabela, análise, três gráficos e H2
 inconclusiva, tudo ainda sem teste oficial. Seus resultados são versionados pelo
 commit `de000de`. A V3 possui protocolo, implementação, executor, análise
-pré-registrada, 269 testes permitidos e três smokes válidos, mas nenhuma run
-científica. Aguarde autorização para o commit pré-runs; não contorne a trava de
-árvore limpa. A consulta ao professor sobre V3 foi rejeitada pelo estudante e
-permanece como risco.
+pré-registrada e infraestrutura versionada no commit `2c15768`. Suas nove runs,
+tabela, análise e três gráficos estão concluídos localmente, sem teste oficial.
+H3a não foi contradita, H3b/H3c foram sustentadas e H3d ficou inconclusiva.
+Aguarde autorização para o commit de encerramento. A consulta ao professor
+sobre V3 foi rejeitada pelo estudante e permanece como risco.

@@ -56,19 +56,31 @@ removeu fontes de erro e garantiu uma comparação controlada para a V1.
 - `L2-IDENTITY` começa com os mesmos pesos lineares da ReLU em cada seed.
 - A comparação com ReLU verifica os controles, mas atravessa commits e kernel;
   essa limitação deve ser mostrada.
-- 269 testes passaram; nenhuma run científica ou teste oficial ocorreu.
+- 269 testes passaram antes das runs; o teste oficial permaneceu reservado.
+
+## Resultado da V3
+
+- Validação média: L1 = 84,5414%; L2 = 84,6744%; L3 = 84,6796%.
+- Profundidade ganhou só `0,1331` a `0,1382` p.p. sobre L1, abaixo do limiar.
+- O custo cresceu de 2,6107501 para 84,0291601 e 154,4654481 GFLOPs/run.
+- H3a não foi contradita; H3b e H3c foram sustentadas.
+- ReLU venceu L2 nas três seeds por `0,3737` p.p. em média, mas H3d ficou
+  inconclusiva porque não atingiu `0,5` p.p.
+- Mensagem principal: sem ativação, mais camadas mantiveram a mesma classe afim
+  e trouxeram ganho pequeno com forte aumento de custo.
+- Evidência: `experiments/v3/analysis.md`, `summary.csv` e três gráficos.
 
 | Item | Estado | Evidência atual |
 |---:|---|---|
 | 1. Uso de IA | Parcial | `experiments/ai_usage.md` |
 | 2. Tarefa Adult | Parcial | `AGENTS.md` e configuração de V1 |
 | 3. Baseline | Concluído | ReLU: três seeds e repetição exata da seed 0; teste reservado |
-| 4. Variáveis e controles | Parcial | `AGENTS.md`, `hypotheses.md` e protocolos V1/V2/V3 |
-| 5. Formulação | Parcial | ativações q01 e colapso afim da V3 |
-| 6. Arquitetura e treino | Parcial | `AdultMLP`, `AdultLinearClassifier` e testes |
-| 7. Protocolo | Parcial | executores e configurações de V1, V2 e V3 |
-| 8. Resultados | Parcial | V1 e V2 completas; V2 em `v2/summary.csv` e três gráficos |
-| 9. Desempenho/FLOPs | Parcial | V2: custos iguais; beta 5 teve maior retorno observado |
-| 10. Hipóteses/resultados | Parcial | V1 em `analysis.md`; H2 inconclusiva em `v2/analysis.md` |
+| 4. Variáveis e controles | Concluído | `AGENTS.md`, `hypotheses.md` e protocolos V1/V2/V3 |
+| 5. Formulação | Concluído | ativações q01 e colapso afim da V3 |
+| 6. Arquitetura e treino | Concluído | `AdultMLP`, `AdultLinearClassifier` e testes |
+| 7. Protocolo | Concluído | executores e configurações de V1, V2 e V3 |
+| 8. Resultados | Parcial | V1, V2 e V3 completas em validação; teste final pendente |
+| 9. Desempenho/FLOPs | Parcial | resultados por variável prontos; síntese conjunta pendente |
+| 10. Hipóteses/resultados | Concluído | análises de V1, V2 e V3 |
 | 11. Dificuldades | Parcial | estabilidade da loss e correção vetor `@` vetor em `experiments/ai_usage.md` |
-| 12. Reprodução | Parcial | V3 pré-runs: executores, 3 smokes e 269 testes |
+| 12. Reprodução | Parcial | executores, logs, tabelas e gráficos das três variáveis |

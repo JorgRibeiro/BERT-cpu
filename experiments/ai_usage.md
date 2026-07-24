@@ -173,4 +173,17 @@
   Parâmetros e FLOPs por época foram 218/26.107.501, 7.106/840.291.601 e
   11.266/1.544.654.481. Checkpoints e equivalência `W*x+b` foram validados.
 - Limites: smoke não testa hipóteses; nenhuma run científica ou consulta ao
-  teste oficial ocorreu. Commit e push não foram realizados nesta preparação.
+  teste oficial ocorreu. O estudante autorizou depois o commit pré-runs
+  `2c15768`; nenhum push foi realizado.
+
+## 24/07/2026 — execução e análise da Variável 3
+
+- Objetivo: executar as nove runs e aplicar H3a–H3d sem consultar o teste.
+- Contribuição da IA: execuções sequenciais, validação de logs/checkpoints,
+  tabela, três gráficos, análise escrita e revisão independente.
+- Verificação: nove runs em um único contexto, seeds `0`, `1` e `2`, artefatos
+  íntegros e ponte controlada entre `F-RELU` e `L2-IDENTITY`.
+- Resultado: H3a não contradita, H3b/H3c sustentadas e H3d inconclusiva.
+- Limites: três seeds, split fixo, FLOPs instrumentados e kernels diferentes na
+  ponte com ReLU. O teste oficial não foi consultado; commit de encerramento e
+  push não foram autorizados.

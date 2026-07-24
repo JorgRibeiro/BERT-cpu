@@ -15,8 +15,10 @@ ficam em `AGENTS.md`.
   de fechamento da V1.
 - A V2 tem 12 runs válidas, tabela, três gráficos e H2 inconclusiva.
 - A V2 foi encerrada no commit `de000de`.
-- A infraestrutura da V3 e três smokes estão prontos; 269 testes passam.
-- Nenhuma run científica da V3 foi executada.
+- A infraestrutura da V3 foi versionada no commit `2c15768`.
+- A V3 tem nove runs válidas, tabela, três gráficos e análise de H3a–H3d.
+- H3a não foi contradita, H3b/H3c foram sustentadas e H3d ficou inconclusiva.
+- O teste oficial ainda não foi consultado.
 - Não fazer commit ou push sem autorização.
 
 ## O que vamos testar
@@ -121,7 +123,7 @@ Somente depois de fechar V1:
 - [x] revalidar os 12 artefatos e os 196 testes permitidos;
 - [x] versionar o encerramento após autorização.
 
-### 5. Executar a Variável 3 — preparação local concluída em 24/07/2026
+### 5. Executar a Variável 3 — análise concluída localmente em 24/07/2026
 
 Somente depois de fechar V2:
 
@@ -131,10 +133,11 @@ Somente depois de fechar V2:
 - [x] preparar executor, lote, análise e checkpoints;
 - [x] fazer três smokes de duas épocas;
 - [x] validar os 269 testes permitidos;
-- [ ] versionar a infraestrutura após autorização;
-- [ ] executar as três profundidades nas três seeds;
-- [ ] comparar `L2-IDENTITY` com `F-RELU`;
-- [ ] gerar tabela, gráficos, analisar e encerrar V3.
+- [x] versionar a infraestrutura após autorização;
+- [x] executar as três profundidades nas três seeds;
+- [x] comparar `L2-IDENTITY` com `F-RELU`;
+- [x] gerar tabela, três gráficos e analisar H3a–H3d;
+- [ ] versionar o encerramento após autorização.
 
 ### 6. Finalizar a análise
 
@@ -154,5 +157,6 @@ Somente depois de fechar V2:
 
 ## Próximo passo
 
-Receber autorização para o commit pré-runs da V3. Depois, executar primeiro as
-três seeds de `L1-DIRECT`. Não consultar o teste oficial.
+Revisar os artefatos da V3 e receber autorização para o commit de encerramento.
+Depois, confirmar separadamente o início da fase final antes de consultar o
+teste oficial.
