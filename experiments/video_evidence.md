@@ -46,17 +46,29 @@ removeu fontes de erro e garantiu uma comparação controlada para a V1.
 - Beta 1 reproduziu exatamente a Softplus da V1 em métricas e pesos, mas teve
   custo instrumentado maior.
 
+## Highlights — preparação da V3
+
+- As três redes não usam ativação: as camadas `Linear` são ligadas diretamente.
+- Não foi criada uma camada Identity; portanto seu custo é zero.
+- Mesmo com mais camadas, a composição continua sendo uma função afim `W*x+b`.
+- O que muda é a parametrização, a otimização, os parâmetros e os FLOPs.
+- Três smokes confirmaram 218, 7.106 e 11.266 parâmetros e custos crescentes.
+- `L2-IDENTITY` começa com os mesmos pesos lineares da ReLU em cada seed.
+- A comparação com ReLU verifica os controles, mas atravessa commits e kernel;
+  essa limitação deve ser mostrada.
+- 269 testes passaram; nenhuma run científica ou teste oficial ocorreu.
+
 | Item | Estado | Evidência atual |
 |---:|---|---|
 | 1. Uso de IA | Parcial | `experiments/ai_usage.md` |
 | 2. Tarefa Adult | Parcial | `AGENTS.md` e configuração de V1 |
 | 3. Baseline | Concluído | ReLU: três seeds e repetição exata da seed 0; teste reservado |
-| 4. Variáveis e controles | Parcial | `AGENTS.md`, `hypotheses.md` e protocolos V1/V2 |
-| 5. Formulação | Parcial | `q01_activations.py` e testes de Softplus/Softplus-beta |
-| 6. Arquitetura e treino | Parcial | `exercises/task_binary_classification.py` e testes de integração |
-| 7. Protocolo | Parcial | `run_v2.py`, `run_v2_all.py`, configuração e protocolo |
+| 4. Variáveis e controles | Parcial | `AGENTS.md`, `hypotheses.md` e protocolos V1/V2/V3 |
+| 5. Formulação | Parcial | ativações q01 e colapso afim da V3 |
+| 6. Arquitetura e treino | Parcial | `AdultMLP`, `AdultLinearClassifier` e testes |
+| 7. Protocolo | Parcial | executores e configurações de V1, V2 e V3 |
 | 8. Resultados | Parcial | V1 e V2 completas; V2 em `v2/summary.csv` e três gráficos |
 | 9. Desempenho/FLOPs | Parcial | V2: custos iguais; beta 5 teve maior retorno observado |
 | 10. Hipóteses/resultados | Parcial | V1 em `analysis.md`; H2 inconclusiva em `v2/analysis.md` |
 | 11. Dificuldades | Parcial | estabilidade da loss e correção vetor `@` vetor em `experiments/ai_usage.md` |
-| 12. Reprodução | Parcial | V2: runner, 12 logs/checkpoints, tabela, gráficos e 196 testes |
+| 12. Reprodução | Parcial | V3 pré-runs: executores, 3 smokes e 269 testes |

@@ -1,9 +1,13 @@
-"""Binary classification on Adult with the activation family from q01.
+"""Binary classification on Adult for the controlled q01 experiments.
 
 The model keeps the original column-oriented architecture ``108 -> 64 -> 2``.
 For Variable 1, only the hidden activation changes: ReLU (the default),
 Sigmoid, Swish or Softplus. Training is full-batch Adam and validation is a
 fixed hold-out from the official Adult training file.
+
+Variable 3 uses a separate ``AdultLinearClassifier`` so the activation studies
+remain unchanged. It directly composes one, two or three affine layers without
+creating an artificial Identity operation between them.
 
 The official test file is deliberately opt-in. A normal invocation uses only
 training and validation data::
@@ -36,6 +40,7 @@ from exercises.q01_activations import ExTensor
 
 ACTIVATIONS = ("relu", "sigmoid", "swish", "softplus")
 SUPPORTED_ACTIVATIONS = ACTIVATIONS + ("softplus_beta",)
+SUPPORTED_LINEAR_DEPTHS = (1, 2, 3)
 
 
 # ============================================================================ #
@@ -101,6 +106,62 @@ class AdultMLP(nn.Module):
         return self.fc2(self._activate(z))
 
 
+class AdultLinearClassifier(nn.Module):
+    """Adult classifier made only of directly composed affine layers.
+
+    ``depth=1`` is ``108 -> 2``; ``depth=2`` is ``108 -> 64 -> 2``; and
+    ``depth=3`` is ``108 -> 64 -> 64 -> 2``. Outputs are passed directly from
+    one ``Linear`` to the next, so there is no Identity node or corresponding
+    elementwise FLOP.
+    """
+
+    def __init__(
+        self,
+        n_features: int,
+        depth: int,
+        hidden: int = 64,
+    ) -> None:
+        if (
+            isinstance(n_features, (bool, np.bool_))
+            or not isinstance(n_features, (int, np.integer))
+            or isinstance(hidden, (bool, np.bool_))
+            or not isinstance(hidden, (int, np.integer))
+        ):
+            raise ValueError("n_features and hidden must be positive integers")
+        n_features = int(n_features)
+        hidden = int(hidden)
+        if isinstance(depth, (bool, np.bool_)) or not isinstance(
+            depth, (int, np.integer)
+        ):
+            raise ValueError("depth must be one of: 1, 2, 3")
+        depth = int(depth)
+        if depth not in SUPPORTED_LINEAR_DEPTHS:
+            raise ValueError("depth must be one of: 1, 2, 3")
+        if n_features <= 0 or hidden <= 0:
+            raise ValueError("n_features and hidden must be positive integers")
+
+        self.n_features = n_features
+        self.hidden = hidden
+        self.depth = depth
+        sizes = {
+            1: (n_features, 2),
+            2: (n_features, hidden, 2),
+            3: (n_features, hidden, hidden, 2),
+        }[depth]
+        self.layer_sizes = sizes
+        self.layers = tuple(
+            nn.Linear(input_size, output_size)
+            for input_size, output_size in zip(sizes, sizes[1:])
+        )
+
+    def forward(self, x: cpu.Tensor) -> cpu.Tensor:
+        """Return ``(2, batch)`` logits using only the configured affine maps."""
+        output = x
+        for layer in self.layers:
+            output = layer(output)
+        return output
+
+
 def build_model(
     n_features: int,
     activation: str = "relu",
@@ -118,7 +179,41 @@ def build_model(
     )
 
 
-def parameter_count(model: AdultMLP) -> int:
+def build_linear_model(
+    n_features: int,
+    depth: int,
+    model_seed: int = 0,
+    *,
+    hidden: int = 64,
+) -> AdultLinearClassifier:
+    """Seed immediately before constructing one Variable 3 architecture."""
+    cpu.set_seed(model_seed)
+    return AdultLinearClassifier(n_features, depth=depth, hidden=hidden)
+
+
+def collapse_affine(
+    model: AdultLinearClassifier,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return the single matrix and bias equivalent to the composed model.
+
+    The returned arrays satisfy ``model(x) == matrix @ x + bias[:, None]`` up to
+    floating-point roundoff. This is a mechanical verification helper; it does
+    not change the trained model or its parameterization.
+    """
+    if not model.layers or any(not layer.bias for layer in model.layers):
+        raise ValueError("collapse_affine requires biased Linear layers")
+    dtype = model.layers[0].weight.data.dtype
+    matrix = np.eye(model.n_features, dtype=dtype)
+    bias = np.zeros(model.n_features, dtype=dtype)
+    for layer in model.layers:
+        affine_matrix = layer.weight.data[1:].T
+        affine_bias = layer.weight.data[0]
+        matrix = affine_matrix @ matrix
+        bias = affine_matrix @ bias + affine_bias
+    return matrix, bias
+
+
+def parameter_count(model: nn.Module) -> int:
     """Number of trainable scalar parameters."""
     return int(sum(parameter.data.size for parameter in model.parameters()))
 
@@ -170,7 +265,7 @@ def train_val_split(
 # ============================================================================ #
 # Evaluation and structured training output
 # ============================================================================ #
-def accuracy(model: AdultMLP, X: np.ndarray, y: np.ndarray) -> float:
+def accuracy(model: nn.Module, X: np.ndarray, y: np.ndarray) -> float:
     """Fraction of samples whose largest logit matches the label."""
     logits = model(cpu.Tensor(X, requires_grad=False)).data
     predictions = logits.argmax(axis=0)
@@ -213,7 +308,7 @@ class ExperimentResult:
 
 
 def train(
-    model: AdultMLP,
+    model: nn.Module,
     X_tr: np.ndarray,
     y_tr: np.ndarray,
     X_val: np.ndarray,
@@ -222,7 +317,7 @@ def train(
     lr: float = 1e-2,
     *,
     verbose: bool = True,
-    epoch_callback: Callable[[EpochMetrics, AdultMLP], None] | None = None,
+    epoch_callback: Callable[[EpochMetrics, nn.Module], None] | None = None,
 ) -> TrainingResult:
     """Train full-batch with Adam and return every loss, accuracy and FLOP count.
 

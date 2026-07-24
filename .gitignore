@@ -17,3 +17,8 @@ experiments/v2/results.csv.lock
 experiments/v2/.run_reservations/
 experiments/v2/logs/smoke/
 experiments/v2/checkpoints/smoke/
+experiments/v3/results.csv.lock
+experiments/v3/.run_reservations/
+experiments/v3/logs/smoke/
+experiments/v3/checkpoints/smoke/
+experiments/v3/.smoke_archive/

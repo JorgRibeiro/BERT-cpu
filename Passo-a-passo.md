@@ -10,11 +10,13 @@ ficam em `AGENTS.md`.
 - Adult, q01, baseline, variáveis e protocolo estão confirmados.
 - A V1 tem 12 runs primárias e uma repetição determinística válidas.
 - H1a/H1b ficaram inconclusivas e H1c foi sustentada.
-- Tabela e três gráficos da V1 são regeneráveis; 196 testes permitidos passam.
+- Tabela e três gráficos da V1 são regeneráveis.
 - O teste oficial não foi consultado e os artefatos foram versionados no commit
   de fechamento da V1.
 - A V2 tem 12 runs válidas, tabela, três gráficos e H2 inconclusiva.
-- O commit de encerramento da V2 foi autorizado em 24/07/2026.
+- A V2 foi encerrada no commit `de000de`.
+- A infraestrutura da V3 e três smokes estão prontos; 269 testes passam.
+- Nenhuma run científica da V3 foi executada.
 - Não fazer commit ou push sem autorização.
 
 ## O que vamos testar
@@ -119,16 +121,20 @@ Somente depois de fechar V1:
 - [x] revalidar os 12 artefatos e os 196 testes permitidos;
 - [x] versionar o encerramento após autorização.
 
-### 5. Executar a Variável 3
+### 5. Executar a Variável 3 — preparação local concluída em 24/07/2026
 
 Somente depois de fechar V2:
 
-- implementar as três arquiteturas sem ativação;
-- verificar contagem de parâmetros e equivalência com uma função afim única;
-- fazer smoke test;
-- executar as três profundidades nas três seeds;
-- comparar também `L2-IDENTITY` com `F-RELU`;
-- analisar e encerrar V3.
+- [x] registrar protocolo e H3a–H3d antes das runs;
+- [x] implementar as três arquiteturas sem ativação;
+- [x] validar parâmetros, FLOPs e equivalência afim;
+- [x] preparar executor, lote, análise e checkpoints;
+- [x] fazer três smokes de duas épocas;
+- [x] validar os 269 testes permitidos;
+- [ ] versionar a infraestrutura após autorização;
+- [ ] executar as três profundidades nas três seeds;
+- [ ] comparar `L2-IDENTITY` com `F-RELU`;
+- [ ] gerar tabela, gráficos, analisar e encerrar V3.
 
 ### 6. Finalizar a análise
 
@@ -148,5 +154,5 @@ Somente depois de fechar V2:
 
 ## Próximo passo
 
-Revisar as evidências da V2 com o estudante. Não consultar o teste oficial nem
-iniciar V3 sem uma nova solicitação.
+Receber autorização para o commit pré-runs da V3. Depois, executar primeiro as
+três seeds de `L1-DIRECT`. Não consultar o teste oficial.

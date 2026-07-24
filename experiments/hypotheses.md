@@ -78,3 +78,62 @@ aproxima a função da ReLU na grade definida pelos testes.
 
 O teste oficial não será consultado durante implementação, seleção ou análise
 da V2.
+
+## Variável 3 — profundidade linear sem ativação
+
+Registrada em 24/07/2026, antes dos smokes e das runs científicas da V3.
+
+### Controles
+
+Adult, split, seeds, Adam, `lr=1e-2`, 100 épocas e avaliação permanecem fixos.
+Muda a quantidade de camadas lineares, sem ativação entre elas:
+`L1-DIRECT`, `L2-IDENTITY` e `L3-IDENTITY`.
+
+As arquiteturas têm parametrizações e custos diferentes, mas todas representam
+uma única função afim `W*x + b`. A seed torna cada modelo repetível; ela não
+iguala pesos de formatos diferentes.
+
+### H3a — ganho com a profundidade linear
+
+Nem `L2-IDENTITY` nem `L3-IDENTITY` melhorará `L1-DIRECT` por pelo menos
+`0,5` p.p. Para cada comparação, registrar a diferença pareada nas três seeds.
+Um ganho do modelo mais profundo de pelo menos `0,5` p.p., positivo em duas
+seeds, contradiz a previsão correspondente. Ausência desse ganho não prova
+equivalência estatística; será descrita como “não contradita”.
+
+H3a global será “contradita” se qualquer uma das duas comparações contradizer
+a previsão; caso contrário, será “não contradita”.
+
+### H3b — custo
+
+Parâmetros e FLOPs instrumentados crescerão estritamente:
+
+```text
+L1-DIRECT < L2-IDENTITY < L3-IDENTITY
+```
+
+### H3c — retorno por FLOP
+
+O retorno seguirá `R(L1-DIRECT) > R(L2-IDENTITY) > R(L3-IDENTITY)`, usando a
+fórmula já congelada no protocolo geral.
+
+### H3d — efeito da não linearidade
+
+`F-RELU` superará `L2-IDENTITY` por pelo menos `0,5` p.p. na média e terá
+diferença positiva nas seeds pareadas em pelo menos duas de três. O efeito
+inverso refuta H3d; demais casos são inconclusivos.
+
+As runs ReLU vêm da V1. Antes da comparação, conferir dados, split,
+arquitetura linear, hiperparâmetros, procedimento, instrumentação, software e
+hashes iniciais. Commit e plataforma/kernel diferentes serão registrados como
+limitação: a ponte é controlada, mas não é um contexto literal idêntico. Não
+serão criadas três runs ReLU extras fora do plano confirmado.
+
+### Verificação mecânica
+
+Para cada profundidade, comparar a saída do modelo com a matriz e o viés
+colapsados, usando `rtol=1e-12` e `atol=1e-12`. Isso verifica a equivalência
+afim, mas não é resultado incerto nem hipótese de desempenho.
+
+O teste oficial continuará indisponível. O risco de enquadramento acadêmico de
+V3 permanece registrado por decisão do estudante.

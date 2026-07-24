@@ -26,7 +26,10 @@ infraestrutura pré-experimental foi implementada e validada localmente, com
 quatro smokes de duas épocas, e versionada no commit `26e4473`. Em 24/07/2026,
 as 12 runs científicas da V2 foram executadas e analisadas sem consulta ao teste
 oficial. H2 ficou inconclusiva. Em 24/07/2026, o estudante autorizou o commit de
-encerramento que versiona esses resultados.
+encerramento `de000de`, que versiona esses resultados. Depois desse fechamento,
+o estudante solicitou o início da V3. Sua infraestrutura pré-runs foi preparada
+localmente e três smokes técnicos passaram; nenhuma run científica da V3 foi
+executada e um novo commit ainda exige autorização.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
@@ -64,7 +67,7 @@ artefatos experimentais descartados. Não trate o smoke como teste de hipótese.
   `backward`, dinâmica de treinamento e desempenho medido. Não basta trocar o
   nome da função no código e apresentar a acurácia final.
 
-## Estado técnico observado até 23/07/2026
+## Estado técnico observado até 24/07/2026
 
 ### q01
 
@@ -129,7 +132,7 @@ O comando abaixo passa atualmente:
 
 ```text
 pytest -q --ignore=test/test_model.py
-196 passed
+269 passed
 ```
 
 Quatro placeholders do Transformer continuam fora do escopo. Não afirme que a
@@ -185,6 +188,30 @@ As 12 runs científicas foram validadas em um único contexto experimental:
 - beta 1 reproduziu exatamente pesos e métricas da Softplus da V1, mas teve
   custo maior pela instrumentação da multiplicação e divisão por beta;
 - tabela, análise e três gráficos estão em `experiments/v2/`.
+
+### Preparação da V3
+
+`AdultLinearClassifier` implementa separadamente as três profundidades sem
+alterar a `AdultMLP` de V1/V2. O forward encadeia somente `Linear`; não existe
+operação `Identity` nem FLOP atribuído a ela. `collapse_affine` verifica a forma
+equivalente `W*x+b`.
+
+`experiments/run_v3.py`, `run_v3_all.py` e `plot_v3.py` preparam as nove runs,
+seus artefatos e H3a–H3d. Os três smokes de duas épocas passaram:
+
+- L1: 218 parâmetros e 26.107.501 FLOPs instrumentados por época;
+- L2: 7.106 parâmetros e 840.291.601 FLOPs por época;
+- L3: 11.266 parâmetros e 1.544.654.481 FLOPs por época.
+
+Os checkpoints, a equivalência afim e os custos de inferência foram validados.
+Os smokes não criaram `results.csv`, não carregaram o teste oficial e não são
+evidência das hipóteses. As runs científicas permanecem bloqueadas até a
+infraestrutura ser versionada com autorização.
+
+A futura ponte entre `F-RELU` da V1 e `L2-IDENTITY` confere dados, split,
+arquitetura linear, inicialização, treinamento, instrumentação e software. Ela
+continua limitada por atravessar commits e possivelmente kernels/plataformas
+diferentes; isso não será apresentado como contexto literal idêntico.
 
 ### Resultado da Variável 1
 
@@ -521,7 +548,9 @@ observações.
     21/07/2026;
 11. implementar, testar, executar e encerrar V2 — concluído e versionado no
     commit de encerramento autorizado em 24/07/2026;
-12. somente então implementar, testar, executar e encerrar V3;
+12. implementar, testar, executar e encerrar V3 — infraestrutura e três smokes
+    concluídos localmente em 24/07/2026; commit pré-runs, nove runs e análise
+    pendentes;
 13. realizar a avaliação de teste na fase aprovada;
 14. realizar a análise conjunta de trade-offs;
 15. atualizar README, dependências, uso de IA, vídeo e reprodução.
@@ -700,6 +729,8 @@ Neste momento, a Variável 1 está concluída e versionada no commit `07243dc`,
 sem teste oficial: 13 runs válidas, hipóteses avaliadas, tabela e três gráficos
 reproduzíveis. A V2 possui 12 runs válidas, tabela, análise, três gráficos e H2
 inconclusiva, tudo ainda sem teste oficial. Seus resultados são versionados pelo
-commit de encerramento autorizado em 24/07/2026. A consulta ao professor sobre
-V3 foi rejeitada pelo estudante e permanece como risco. Não inicie V3 sem uma
-nova solicitação do estudante.
+commit `de000de`. A V3 possui protocolo, implementação, executor, análise
+pré-registrada, 269 testes permitidos e três smokes válidos, mas nenhuma run
+científica. Aguarde autorização para o commit pré-runs; não contorne a trava de
+árvore limpa. A consulta ao professor sobre V3 foi rejeitada pelo estudante e
+permanece como risco.

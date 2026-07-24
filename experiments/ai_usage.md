@@ -161,3 +161,16 @@
 - Limites: três seeds, split fixo, FLOPs instrumentados e teste oficial não
   avaliado. O estudante proibiu commit durante a análise e depois autorizou
   explicitamente o commit de encerramento. Nenhum push foi autorizado.
+
+## 24/07/2026 — preparação da Variável 3
+
+- Objetivo: preparar o estudo da profundidade linear sem ativação.
+- Contribuição da IA: classe V3 isolada, colapso afim, protocolo, H3a–H3d,
+  configuração congelada, executores, análise, checkpoints e testes.
+- Decisão técnica: encadear `Linear` diretamente, sem criar função ou camada
+  `Identity`; preservar integralmente os caminhos de V1/V2.
+- Verificação: 269 testes permitidos e três smokes de duas épocas passaram.
+  Parâmetros e FLOPs por época foram 218/26.107.501, 7.106/840.291.601 e
+  11.266/1.544.654.481. Checkpoints e equivalência `W*x+b` foram validados.
+- Limites: smoke não testa hipóteses; nenhuma run científica ou consulta ao
+  teste oficial ocorreu. Commit e push não foram realizados nesta preparação.
