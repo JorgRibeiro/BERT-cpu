@@ -125,3 +125,39 @@
   travas de retomada e artefatos temporários.
 - Decisão do estudante: início da V2 autorizado. Nenhuma run científica,
   avaliação no teste oficial, commit ou push foi realizado nesta etapa.
+
+## 24/07/2026 — referência da Variável 2
+
+- Objetivo: versionar a infraestrutura e executar `S-BETA-1` nas seeds 0, 1 e
+  2 antes das demais curvas.
+- Contribuição da IA: commit pré-runs autorizado, três execuções sequenciais e
+  validação de logs, checkpoints, métricas, hashes e FLOPs.
+- Verificação: três runs `completed_valid`; média de validação 84,8843%,
+  desvio-padrão amostral 0,1022 p.p. e 85,0711121 GFLOPs por run.
+- Limites: resultado ainda parcial, sem decisão de H2 e sem avaliação no teste
+  oficial. Nenhum push ou commit dos resultados foi realizado.
+
+## 24/07/2026 — conclusão das execuções da Variável 2
+
+- Objetivo: executar `beta=0,5`, `2` e `5`, sempre nas três seeds, e validar o
+  grid completo.
+- Contribuição da IA: lote sequencial retomável, acompanhamento das nove runs e
+  revalidação conjunta dos 12 logs e checkpoints.
+- Verificação: 12 runs `completed_valid`, um único contexto experimental,
+  85,0711121 GFLOPs por run e `test_accuracy` vazio em todas.
+- Limite: tabela, gráficos, diagnósticos e H2 ainda não foram analisados.
+  Nenhum commit ou push dos resultados foi realizado.
+
+## 24/07/2026 — análise da Variável 2
+
+- Objetivo: consolidar as 12 runs, analisar convergência e diagnósticos e
+  aplicar H2 sem alterar o protocolo.
+- Contribuição da IA: tabela agregada, três gráficos, análise escrita,
+  verificação visual e recálculo independente de H2.
+- Verificação: beta 2 venceu o grupo central, beta 5 venceu o extremo e a
+  diferença foi -0,1587 p.p.; H2 ficou inconclusiva. Beta 1 reproduziu
+  exatamente pesos e métricas da Softplus da V1. Os 12 artefatos foram
+  revalidados e 196 testes permitidos passaram.
+- Limites: três seeds, split fixo, FLOPs instrumentados e teste oficial não
+  avaliado. O estudante proibiu commit durante a análise e depois autorizou
+  explicitamente o commit de encerramento. Nenhum push foi autorizado.

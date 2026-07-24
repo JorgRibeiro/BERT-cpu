@@ -13,8 +13,8 @@ ficam em `AGENTS.md`.
 - Tabela e três gráficos da V1 são regeneráveis; 196 testes permitidos passam.
 - O teste oficial não foi consultado e os artefatos foram versionados no commit
   de fechamento da V1.
-- A infraestrutura da V2 e quatro smokes estão validados; ainda não há runs
-  científicas da V2.
+- A V2 tem 12 runs válidas, tabela, três gráficos e H2 inconclusiva.
+- O commit de encerramento da V2 foi autorizado em 24/07/2026.
 - Não fazer commit ou push sem autorização.
 
 ## O que vamos testar
@@ -104,7 +104,7 @@ pytest -q --ignore=test/test_model.py
 - [x] Gerar tabela e gráficos reproduzíveis.
 - [x] Versionar o fechamento após autorização.
 
-### 4. Executar a Variável 2 — em andamento
+### 4. Executar a Variável 2 — concluída localmente em 24/07/2026
 
 Somente depois de fechar V1:
 
@@ -113,9 +113,11 @@ Somente depois de fechar V1:
 - [x] testar valores, derivadas, integração e FLOPs;
 - [x] preparar e validar executor unitário, lote e análise;
 - [x] fazer smoke das quatro configurações;
-- [ ] versionar a infraestrutura após autorização;
-- [ ] executar os quatro valores de `beta` nas três seeds;
-- [ ] analisar e encerrar V2.
+- [x] versionar a infraestrutura após autorização;
+- [x] executar os quatro valores de `beta` nas três seeds;
+- [x] gerar tabela, três gráficos e avaliar H2;
+- [x] revalidar os 12 artefatos e os 196 testes permitidos;
+- [x] versionar o encerramento após autorização.
 
 ### 5. Executar a Variável 3
 
@@ -146,5 +148,5 @@ Somente depois de fechar V2:
 
 ## Próximo passo
 
-Solicitar autorização para o commit pré-runs. Depois do commit, executar as 12
-runs da V2. Não consultar o teste oficial nem iniciar V3.
+Revisar as evidências da V2 com o estudante. Não consultar o teste oficial nem
+iniciar V3 sem uma nova solicitação.

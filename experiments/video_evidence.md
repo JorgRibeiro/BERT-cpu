@@ -32,10 +32,19 @@ removeu fontes de erro e garantiu uma comparação controlada para a V1.
   `sigmoid(beta*z)`.
 - A Softplus antiga permanece em 3 FLOPs por elemento; Softplus-beta usa 5 em
   todos os níveis.
-- `S-BETA-1` será uma nova execução: igualdade matemática não torna commits,
+- `S-BETA-1` foi executada novamente: igualdade matemática não torna commits,
   caminhos e instrumentações experimentais idênticos.
 - Quatro smokes validaram o executor e os custos; eles não testam H2.
-- Estes são fatos de implementação e plano; ainda não há resultado da V2.
+- As três seeds de `S-BETA-1` são resultado parcial; H2 exige os quatro betas.
+
+## Resultado da V2
+
+- Validação média observada: beta 0,5 = 84,7461%; beta 1 = 84,8843%;
+  beta 2 = 85,0379%; beta 5 = 85,1966%.
+- As 12 runs custaram 85,0711121 GFLOPs instrumentados cada.
+- H2 ficou inconclusiva: beta 2 menos beta 5 = -0,1587 p.p., abaixo do limiar.
+- Beta 1 reproduziu exatamente a Softplus da V1 em métricas e pesos, mas teve
+  custo instrumentado maior.
 
 | Item | Estado | Evidência atual |
 |---:|---|---|
@@ -46,8 +55,8 @@ removeu fontes de erro e garantiu uma comparação controlada para a V1.
 | 5. Formulação | Parcial | `q01_activations.py` e testes de Softplus/Softplus-beta |
 | 6. Arquitetura e treino | Parcial | `exercises/task_binary_classification.py` e testes de integração |
 | 7. Protocolo | Parcial | `run_v2.py`, `run_v2_all.py`, configuração e protocolo |
-| 8. Resultados | Parcial | V1: tabela, curvas e métricas finais de 13 runs |
-| 9. Desempenho/FLOPs | Parcial | `v1_accuracy_vs_flops.png`: ReLU/Swish na Pareto |
-| 10. Hipóteses/resultados | Parcial | `analysis.md`: H1a/H1b inconclusivas; H1c sustentada |
+| 8. Resultados | Parcial | V1 e V2 completas; V2 em `v2/summary.csv` e três gráficos |
+| 9. Desempenho/FLOPs | Parcial | V2: custos iguais; beta 5 teve maior retorno observado |
+| 10. Hipóteses/resultados | Parcial | V1 em `analysis.md`; H2 inconclusiva em `v2/analysis.md` |
 | 11. Dificuldades | Parcial | estabilidade da loss e correção vetor `@` vetor em `experiments/ai_usage.md` |
-| 12. Reprodução | Parcial | V1 versionada; V2 com lote seco, 4 smokes e 196 testes |
+| 12. Reprodução | Parcial | V2: runner, 12 logs/checkpoints, tabela, gráficos e 196 testes |

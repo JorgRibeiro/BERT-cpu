@@ -23,8 +23,10 @@ consulta ao teste oficial. A Variável 1 foi executada e analisada localmente em
 três gráficos reproduzíveis. Esses artefatos foram versionados no commit de
 fechamento da V1. Em 23/07/2026, o estudante solicitou o início da V2. Sua
 infraestrutura pré-experimental foi implementada e validada localmente, com
-quatro smokes de duas épocas. Nenhuma run científica da V2 foi executada; o
-próximo portão é o commit pré-runs, que exige autorização do estudante.
+quatro smokes de duas épocas, e versionada no commit `26e4473`. Em 24/07/2026,
+as 12 runs científicas da V2 foram executadas e analisadas sem consulta ao teste
+oficial. H2 ficou inconclusiva. Em 24/07/2026, o estudante autorizou o commit de
+encerramento que versiona esses resultados.
 
 Prazo informado no enunciado: **24 de julho de 2026**. A bonificação depende da
 profundidade do estudo de uma a três variáveis: até 0,5, 1,0 e 1,5 ponto,
@@ -160,7 +162,7 @@ completo.
 Os diagnósticos usam somente a validação fixa e ficam fora da janela de FLOPs.
 Foram produzidas 13 runs científicas válidas, todas sem consulta ao teste.
 
-### Preparação da V2
+### Executor e resultado da V2
 
 `experiments/run_v2.py` executa uma configuração por vez e
 `experiments/run_v2_all.py` fixa a ordem das 12 runs. O validador confere
@@ -170,7 +172,19 @@ run. `experiments/plot_v2.py` já prepara tabela, três gráficos e a decisão d
 Os quatro níveis passaram em smokes isolados de duas épocas, com
 `850.711.121` FLOPs por época e `94.632.384` FLOPs de inferência na validação.
 Os smokes não entraram em `results.csv`, não avaliaram o teste oficial e não são
-evidência de H2. A infraestrutura ainda não foi versionada.
+evidência de H2. A infraestrutura foi versionada no commit `26e4473`.
+
+As 12 runs científicas foram validadas em um único contexto experimental:
+
+- validação média: beta 0,5 = 84,7461%; beta 1 = 84,8843%; beta 2 = 85,0379%;
+  beta 5 = 85,1966%;
+- todos os níveis custaram 85,0711121 GFLOPs instrumentados por run;
+- o vencedor central foi beta 2 e o extremo foi beta 5;
+- a diferença central menos extremo foi -0,1587 p.p., com sinais pareados
+  positivo/negativo em 1/2 seeds; H2 ficou inconclusiva;
+- beta 1 reproduziu exatamente pesos e métricas da Softplus da V1, mas teve
+  custo maior pela instrumentação da multiplicação e divisão por beta;
+- tabela, análise e três gráficos estão em `experiments/v2/`.
 
 ### Resultado da Variável 1
 
@@ -505,8 +519,8 @@ observações.
    e versionado em 21/07/2026;
 10. executar e encerrar a análise da Variável 1 — concluído e versionado em
     21/07/2026;
-11. implementar, testar, executar e encerrar V2 — preparação pré-runs concluída
-    localmente em 23/07/2026; commit, 12 runs e análise pendentes;
+11. implementar, testar, executar e encerrar V2 — concluído e versionado no
+    commit de encerramento autorizado em 24/07/2026;
 12. somente então implementar, testar, executar e encerrar V3;
 13. realizar a avaliação de teste na fase aprovada;
 14. realizar a análise conjunta de trade-offs;
@@ -684,7 +698,8 @@ estudante deve conseguir explicar e assumir as decisões finais.
 
 Neste momento, a Variável 1 está concluída e versionada no commit `07243dc`,
 sem teste oficial: 13 runs válidas, hipóteses avaliadas, tabela e três gráficos
-reproduzíveis. A preparação da V2 está validada localmente com quatro smokes,
-mas ainda não foi versionada e não possui runs científicas. Aguarde autorização
-para o commit pré-runs. A consulta ao professor sobre V3 foi rejeitada pelo
-estudante e permanece como risco. Não implemente V3 antes de encerrar V2.
+reproduzíveis. A V2 possui 12 runs válidas, tabela, análise, três gráficos e H2
+inconclusiva, tudo ainda sem teste oficial. Seus resultados são versionados pelo
+commit de encerramento autorizado em 24/07/2026. A consulta ao professor sobre
+V3 foi rejeitada pelo estudante e permanece como risco. Não inicie V3 sem uma
+nova solicitação do estudante.
